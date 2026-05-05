@@ -4,9 +4,7 @@ export const ARMADA = [
   { id: 'pickup',        name: 'Pick Up H 9205 QG',        pic: 'Dimas', bbm: 'Pertalite', hargaBbm: 10000, konsumsi: 10, hasToll: false },
   { id: 'traga_melbap',  name: 'Traga Melbap H 8532 SG',  pic: 'Andik', bbm: 'Solar',     hargaBbm: 6800,  konsumsi: 10, hasToll: false },
   { id: 'traga_kurcaci', name: 'Traga Kurcaci H 9505 PG', pic: 'Agung', bbm: 'Solar',     hargaBbm: 6800,  konsumsi: 10, hasToll: false },
-  { id: 'gran_max',      name: 'Gran Max',                 pic: 'Heru',  bbm: 'Pertalite', hargaBbm: 10000, konsumsi: 10, hasToll: false },
-  { id: 'fortuner',      name: 'Fortuner',                 pic: 'Papang',bbm: 'Pertamax',  hargaBbm: 13900, konsumsi: 13, hasToll: true  },
-  { id: 'terios_hitam',  name: 'Terios Hitam',             pic: 'Yasir', bbm: 'Pertalite', hargaBbm: 10000, konsumsi: 12, hasToll: true  },
+
 ];
 
 export const DRIVERS = [
