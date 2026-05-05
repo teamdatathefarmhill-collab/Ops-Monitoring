@@ -118,59 +118,110 @@ function Toast({ msg, onClose }: { msg: string; onClose: () => void }) {
   );
 }
 
-// ─── TAB: MONITOR ─────────────────────────────────────────────
+// --- TAB: MONITOR ---
 function TabMonitor() {
-  const [stats, setStats] = useState<Record<string, unknown>[] | null>(null);
+  const [rencanas, setRencanas] = useState<RencanaData[]>([]);
+  const [trips, setTrips] = useState<Record<string, unknown>[]>([]);
+  const [stats, setStats] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const todayStr = today();
+
   useEffect(() => {
-    getStats().then(r => {
-      if (r.success && r.data) setStats((r.data as { stats: Record<string, unknown>[] }).stats);
+    Promise.all([getRencana(), getData(), getStats()]).then(([r, d, s]) => {
+      if (r.success && r.data) setRencanas((r.data as { rows: RencanaData[] }).rows);
+      if (d.success && d.data) setTrips((d.data as { rows: Record<string, unknown>[] }).rows);
+      if (s.success && s.data) setStats((s.data as { stats: Record<string, unknown>[] }).stats);
       setLoading(false);
     });
   }, []);
 
   if (loading) return <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 40 }}>Memuat data...</div>;
 
-  const totalKm = stats?.reduce((s, x) => s + ((x.totalKm as number) || 0), 0) ?? 0;
-  const totalOps = stats?.reduce((s, x) => s + ((x.totalOps as number) || 0), 0) ?? 0;
-  const totalTrip = stats?.reduce((s, x) => s + ((x.totalTrip as number) || 0), 0) ?? 0;
+  const aktifHariIni = rencanas.filter(r => r.tgl === todayStr && r.status?.toLowerCase() === 'jadi');
+
+  function getArmadaStatus(armadaName: string) {
+    const sedangJalan = aktifHariIni.find(r => r.armadaName === armadaName);
+    if (sedangJalan) return {
+      label: 'Dipakai', color: 'var(--amber)', bg: 'var(--amber-dim)',
+      info: `${sedangJalan.driver} · ${sedangJalan.tujuan || sedangJalan.lokasiTujuan || sedangJalan.kategori}`,
+      border: 'var(--amber)'
+    };
+    return { label: 'Tersedia', color: 'var(--accent)', bg: 'var(--accent-dim)', info: null, border: 'var(--border)' };
+  }
+
+  const totalKm = stats.reduce((s, x) => s + ((x.totalKm as number) || 0), 0);
+  const totalOps = stats.reduce((s, x) => s + ((x.totalOps as number) || 0), 0);
+  const totalTrip = stats.reduce((s, x) => s + ((x.totalTrip as number) || 0), 0);
+  const totalEstBbm = stats.reduce((s, x) => s + ((x.totalBbm as number) || 0), 0);
+  const totalEstToll = stats.reduce((s, x) => s + ((x.totalToll as number) || 0), 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 10 }}>
+        {ARMADA.map(a => {
+          const status = getArmadaStatus(a.name);
+          return (
+            <div key={a.id} style={{
+              background: 'var(--bg2)', border: `1px solid ${status.border}`,
+              borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
+              transition: 'border-color 0.2s',
+            }}>
+              <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{a.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)' }}>PIC: {a.pic} · {a.bbm}</div>
+              {status.info && (
+                <div style={{ fontSize: 11, color: 'var(--amber)', lineHeight: 1.4 }}>🚗 {status.info}</div>
+              )}
+              <div style={{ marginTop: 'auto' }}>
+                <span style={{
+                  background: status.bg, color: status.color,
+                  padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                }}>{status.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{
+        background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
+        padding: '12px 16px', display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: 13,
+      }}>
         {[
-          { label: 'Total Trip', value: totalTrip, suffix: 'perjalanan', color: 'var(--blue)' },
-          { label: 'Total Jarak', value: `${totalKm.toLocaleString('id-ID')} km`, color: 'var(--accent)' },
-          { label: 'Total Ops', value: fmtRupiah(totalOps), color: 'var(--amber)' },
+          { label: 'Total trip', value: String(totalTrip) },
+          { label: 'Total jarak', value: `${totalKm.toLocaleString('id-ID')} km` },
+          { label: 'Est. biaya BBM', value: fmtRupiah(totalEstBbm) },
+          { label: 'Est. E-toll', value: fmtRupiah(totalEstToll) },
+          { label: 'Rencana aktif', value: String(aktifHariIni.length) },
         ].map(s => (
-          <Card key={s.label}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: s.color, fontFamily: 'JetBrains Mono, monospace' }}>{s.value}</div>
-          </Card>
+          <div key={s.label}>
+            <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+            <div style={{ fontWeight: 600, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{s.value}</div>
+          </div>
         ))}
       </div>
 
-      <Card>
-        <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Per Armada</div>
-        {!stats?.length ? (
-          <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 20 }}>Belum ada data</div>
-        ) : (
+      {aktifHariIni.length > 0 && (
+        <Card>
+          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+            Sedang Beroperasi Hari Ini
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {stats.map((s) => (
-              <div key={s.armada as string} style={{
-                display: 'grid', gridTemplateColumns: '1fr repeat(4, auto)', gap: 12, alignItems: 'center',
-                padding: '10px 12px', background: 'var(--bg)', borderRadius: 6, fontSize: 13,
+            {aktifHariIni.map((r, i) => (
+              <div key={i} style={{
+                padding: '10px 12px', background: 'var(--bg)', borderRadius: 6,
+                display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center',
               }}>
-                <div style={{ fontWeight: 600 }}>{s.armada as string}</div>
-                <div style={{ color: 'var(--text2)', textAlign: 'right' }}>{(s.totalTrip as number)} trip</div>
-                <div style={{ color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace', textAlign: 'right' }}>{(s.totalKm as number).toLocaleString('id-ID')} km</div>
-                <div style={{ color: 'var(--amber)', fontFamily: 'JetBrains Mono, monospace', textAlign: 'right', fontSize: 12 }}>{fmtRupiah(s.totalOps as number)}</div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{r.armadaName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)' }}>{r.driver} · {r.jamMulai} · {r.tujuan || r.lokasiTujuan || r.kategori}</div>
+                </div>
+                <Badge status="jadi" />
               </div>
             ))}
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
