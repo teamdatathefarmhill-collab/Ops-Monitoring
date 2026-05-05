@@ -2,7 +2,7 @@
  * Fleet Monitoring — GAS API Client
  */
 
-const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL ?? '';
+const PROXY = '/api/gas';
 
 export interface TripData {
   tgl: string;
@@ -53,8 +53,7 @@ export interface GasResponse<T = unknown> {
 }
 
 async function gasGet<T>(action: string, params: Record<string, string> = {}): Promise<GasResponse<T>> {
-  if (!GAS_URL) return { success: false, error: 'GAS_URL belum dikonfigurasi di .env.local' };
-  const url = new URL(GAS_URL);
+  const url = new URL(PROXY, window.location.origin);
   url.searchParams.set('action', action);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   const res = await fetch(url.toString(), { cache: 'no-store' });
@@ -62,8 +61,7 @@ async function gasGet<T>(action: string, params: Record<string, string> = {}): P
 }
 
 async function gasPost<T>(action: string, data: unknown): Promise<GasResponse<T>> {
-  if (!GAS_URL) return { success: false, error: 'GAS_URL belum dikonfigurasi di .env.local' };
-  const res = await fetch(GAS_URL, {
+  const res = await fetch(PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, data }),
