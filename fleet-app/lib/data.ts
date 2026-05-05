@@ -9,7 +9,6 @@ export const ARMADA = [
   { id: 'terios_hitam',  name: 'Terios Hitam',             pic: 'Yasir', bbm: 'Pertalite', hargaBbm: 10000, konsumsi: 12, hasToll: true  },
 ];
 
-// ─── DRIVER & KATEGORI ────────────────────────────────────────
 export const DRIVERS = [
   'Dika','Dimas','Andik','Agung','Erwin','Yono','Tian',
   'Erwin Panen','Aldi','Nursis','Copet','Satrio','Kris',
@@ -22,7 +21,6 @@ export const KATEGORI = [
   'Angkut Sanitasi','Angkut Bibit','Pembelian/Ambil Barang','Pembelian Buah',
 ];
 
-// ─── LOKASI & JARAK (km dari Bergas) ─────────────────────────
 export const LOKASI: Record<string, number> = {
   'Bergas': 0,
   'GH Tohudan': 8,
@@ -57,9 +55,6 @@ export function getJarak(a: string, b: string): number {
   return Math.round(d * 1.3);
 }
 
-// ─── TARIF TOLL PRESISI ───────────────────────────────────────
-// Sumber data aktual (satu arah)
-// Gerbang masuk dari arah Solo/Boyolali, keluar ke area Semarang
 export const TOLL_TARIF: Record<string, Record<string, number>> = {
   'GT Banyudono': {
     'GT Bawen':     58000,
@@ -87,40 +82,10 @@ export const TOLL_TARIF: Record<string, Record<string, number>> = {
 export const GT_MASUK = Object.keys(TOLL_TARIF);
 export const GT_KELUAR = ['GT Bawen','GT Ungaran','GT Banyumanik','GT Srondol','GT Tembalang'];
 
-// ─── RUTE PRESET ─────────────────────────────────────────────
-// Rute yang sering dipakai — auto-pilih GT masuk & keluar
-// Bergas tidak punya akses tol langsung, selalu via kota terdekat
-export const RUTE_PRESET: Record<string, { gtMasuk: string; gtKeluar: string; label: string }> = {
-  // Bergas / Solo → Semarang (Ambil Panen & Kiriman)
-  'Bergas → Semarang': {
-    gtMasuk: 'GT Banyudono',
-    gtKeluar: 'GT Banyumanik',
-    label: 'Via Banyudono → Banyumanik',
-  },
-  'Solo → Semarang': {
-    gtMasuk: 'GT Banyudono',
-    gtKeluar: 'GT Banyumanik',
-    label: 'Via Banyudono → Banyumanik',
-  },
-  // Ambil panen: Bergas → Solo masuk Bawen, keluar Bandara
-  'Ambil Panen (Bergas → Solo)': {
-    gtMasuk: 'GT Bawen',  // masuk dari arah Bawen
-    gtKeluar: 'GT Adi Soemarmo (Bandara)',
-    label: 'Masuk Bawen → Keluar Bandara',
-  },
-  // Kiriman Semarangan: Solo → Semarang masuk Bandara, keluar Jatingaleh
-  'Kiriman Semarangan (Solo → Semarang)': {
-    gtMasuk: 'GT Adi Soemarmo (Bandara)',
-    gtKeluar: 'GT Banyumanik',
-    label: 'Masuk Bandara → Keluar Jatingaleh/Banyumanik',
-  },
-};
-
 export function getTollTarif(gtMasuk: string, gtKeluar: string): number {
   return TOLL_TARIF[gtMasuk]?.[gtKeluar] ?? 0;
 }
 
-// Deteksi otomatis rute pakai toll
 export function ruteAdaToll(lokAsal: string, lokTujuan: string): boolean {
   const keywords = ['Solo','Semarang','Boyolali','Ngemplak','Klaten','Karanganyar','Sukoharjo','Magelang','Kendal'];
   const aMatch = keywords.some(k => lokAsal.includes(k));
@@ -128,7 +93,6 @@ export function ruteAdaToll(lokAsal: string, lokTujuan: string): boolean {
   return aMatch || bMatch;
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────
 export function capFirst(s: string): string {
   return s
     ? s.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w).join(' ')
@@ -140,6 +104,7 @@ export function fmtRupiah(n: number): string {
 }
 
 export function fmtTgl(tgl: string): string {
+  if (!tgl) return '-';
   return new Date(tgl).toLocaleDateString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
