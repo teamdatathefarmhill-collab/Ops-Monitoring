@@ -1,11 +1,9 @@
 /**
  * Fleet Monitoring — GAS API Client
- * Semua komunikasi ke Google Apps Script backend ada di sini.
  */
 
 const GAS_URL = process.env.NEXT_PUBLIC_GAS_URL ?? '';
 
-// ─── Types ────────────────────────────────────────────────────
 export interface TripData {
   tgl: string;
   pic: string;
@@ -27,7 +25,7 @@ export interface TripData {
 }
 
 export interface RencanaData {
-  id: number;
+  id?: number;
   tgl: string;
   armadaName: string;
   pic: string;
@@ -45,6 +43,7 @@ export interface RencanaData {
   gtMasuk: string;
   gtKeluar: string;
   ket: string;
+  status?: string;
 }
 
 export interface GasResponse<T = unknown> {
@@ -53,7 +52,6 @@ export interface GasResponse<T = unknown> {
   error?: string;
 }
 
-// ─── Base fetch ───────────────────────────────────────────────
 async function gasGet<T>(action: string, params: Record<string, string> = {}): Promise<GasResponse<T>> {
   if (!GAS_URL) return { success: false, error: 'GAS_URL belum dikonfigurasi di .env.local' };
   const url = new URL(GAS_URL);
@@ -73,29 +71,26 @@ async function gasPost<T>(action: string, data: unknown): Promise<GasResponse<T>
   return res.json();
 }
 
-// ─── API Functions ────────────────────────────────────────────
-
-/** Cek koneksi ke GAS */
 export async function ping() {
   return gasGet('ping');
 }
 
-/** Kirim 1 baris realisasi trip ke sheet "Coba Database" */
 export async function appendTrip(data: TripData) {
   return gasPost<{ rowIndex: number; message: string }>('appendTrip', data);
 }
 
-/** Simpan rencana ke sheet "Rencana" (auto-create sheet kalau belum ada) */
 export async function appendRencana(data: RencanaData) {
   return gasPost<{ message: string }>('appendRencana', data);
 }
 
-/** Ambil semua data dari sheet "Coba Database" */
 export async function getData() {
   return gasGet<{ rows: Record<string, unknown>[]; total: number }>('getData');
 }
 
-/** Ambil statistik ringkasan per armada */
+export async function getRencana() {
+  return gasGet<{ rows: RencanaData[]; total: number }>('getRencana');
+}
+
 export async function getStats() {
   return gasGet<{
     stats: {
@@ -110,7 +105,6 @@ export async function getStats() {
   }>('getStats');
 }
 
-/** Update status rencana (Rencana / Jadi / Batal) */
 export async function updateStatus(rowIndex: number, status: string) {
   return gasPost('updateStatus', { rowIndex, status });
 }
