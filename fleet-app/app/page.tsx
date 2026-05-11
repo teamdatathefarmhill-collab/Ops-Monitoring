@@ -571,14 +571,16 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     const key = String(idx);
     setUpdatingId(key);
     const r = await updateStatus(idx, status);
+    setUpdatingId(null);
     if (r.success) {
       setToast(`✅ Status → ${status}`);
-      // Reload dari GAS agar persistent saat pindah tab
-      await loadRencana();
+      // Update state lokal saja — tidak re-fetch agar tidak loop
+      setRencanas(prev => prev.map(item =>
+        String(item.id) === key ? { ...item, status } : item
+      ));
     } else {
-      setToast(`❌ Gagal update status`);
+      setToast(`❌ Gagal: ${r.error ?? 'updateStatus gagal'}`);
     }
-    setUpdatingId(null);
   }
 
   return (
@@ -703,13 +705,16 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [waText, setWaText]   = useState('');
 
+  const [loadingRencana, setLoadingRencana] = useState(true);
+
   const loadForRealisasi = useCallback(async () => {
+    setLoadingRencana(true);
     const r = await getRencana();
     if (r.success && r.data) {
       const rows = (r.data as { rows: RencanaData[] }).rows;
-      // Hanya tampilkan yang sudah Jadi
       setRencanas(rows.filter(x => x.status?.toLowerCase() === 'jadi'));
     }
+    setLoadingRencana(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadForRealisasi(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -777,11 +782,18 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Card>
-        <SectionTitle>Konfirmasi & Isi Realisasi</SectionTitle>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <SectionTitle>Konfirmasi & Isi Realisasi</SectionTitle>
+          <Btn size="sm" variant="ghost" onClick={loadForRealisasi} loading={loadingRencana}>
+            ↻ Refresh
+          </Btn>
+        </div>
 
-        {!rencanas.length ? (
+        {loadingRencana ? (
+          <div style={{ color: 'var(--text3)', fontSize: 13 }}>Memuat rencana...</div>
+        ) : !rencanas.length ? (
           <div style={{ padding: '16px 0', color: 'var(--text3)', fontSize: 13 }}>
-            Belum ada rencana dengan status <Chip label="Jadi" color="green" /> yang bisa diisi realisasinya.
+            Belum ada rencana dengan status <Chip label="Jadi" color="green" />. Tandai dulu di tab Rencana.
           </div>
         ) : (
           <Select label="Pilih Rencana yang Jadi" value={selectedId ?? ''} onChange={e => pilihRencana(e.target.value)}>
