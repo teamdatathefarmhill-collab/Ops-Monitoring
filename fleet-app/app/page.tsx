@@ -494,11 +494,13 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
 
   const loadRencana = useCallback(async () => {
     const r = await getRencana();
-    if (r.success && r.data) setRencanas((r.data as { rows: RencanaData[] }).rows);
+    if (r.success && r.data) {
+      setRencanas((r.data as { rows: RencanaData[] }).rows);
+    }
     setFetching(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // stabil — tidak ada deps yang berubah
 
-  useEffect(() => { loadRencana(); }, []); // run sekali saat mount// eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadRencana(); }, []); // run sekali saat mount
 
   // Auto-hitung BBM dari jarak
   useEffect(() => {
@@ -571,10 +573,8 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     const r = await updateStatus(idx, status);
     if (r.success) {
       setToast(`✅ Status → ${status}`);
-      // Update state lokal langsung — tidak perlu re-fetch
-      setRencanas(prev => prev.map(item =>
-        String(item.id) === key ? { ...item, status } : item
-      ));
+      // Reload dari GAS agar persistent saat pindah tab
+      await loadRencana();
     } else {
       setToast(`❌ Gagal update status`);
     }
@@ -703,13 +703,12 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [waText, setWaText]   = useState('');
 
-  // Load semua rencana hari ini termasuk yang sudah Jadi
   const loadForRealisasi = useCallback(async () => {
     const r = await getRencana();
     if (r.success && r.data) {
       const rows = (r.data as { rows: RencanaData[] }).rows;
-      // Tampilkan semua status (Rencana & Jadi) — driver bisa isi realisasi keduanya
-      setRencanas(rows);
+      // Hanya tampilkan yang sudah Jadi
+      setRencanas(rows.filter(x => x.status?.toLowerCase() === 'jadi'));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -736,10 +735,11 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
     setForm(f => {
       const next = { ...f, [k]: v };
 
-      // Auto-hitung Est BBM saat KM Akhir atau KM Awal berubah
       if (k === 'kmAkhir' || k === 'kmAwal') {
-        const kmA = k === 'kmAwal'  ? Number(v) : (f.kmAwal  || 0);
-        const kmB = k === 'kmAkhir' ? Number(v) : (f.kmAkhir || 0);
+        // KM dari sheet bisa string "216.127" (titik sebagai pemisah ribuan) — strip dulu
+        const parseKm = (val: unknown) => Number(String(val).replace(/\./g, '').replace(',', '.'));
+        const kmA = k === 'kmAwal'  ? parseKm(v) : parseKm(f.kmAwal  || 0);
+        const kmB = k === 'kmAkhir' ? parseKm(v) : parseKm(f.kmAkhir || 0);
         const jarak = kmB > kmA ? kmB - kmA : 0;
         if (jarak > 0 && f.armadaName) {
           const armada = ARMADA.find(a => a.name === f.armadaName);
