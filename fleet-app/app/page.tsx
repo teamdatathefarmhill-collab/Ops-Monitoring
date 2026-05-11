@@ -759,17 +759,15 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
       const next = { ...f, [k]: v };
 
       if (k === 'kmAkhir' || k === 'kmAwal') {
-        const kmA = k === 'kmAwal'  ? parseKm(v) : parseKm(f.kmAwal);
-        const kmB = k === 'kmAkhir' ? parseKm(v) : parseKm(f.kmAkhir);
+        // Selalu parse ulang dari next (bukan f) agar dapat nilai terbaru
+        const kmA = parseKm(next.kmAwal);
+        const kmB = parseKm(next.kmAkhir);
         const jarak = kmB > kmA ? kmB - kmA : 0;
-        console.log('[BBM calc] kmA:', kmA, 'kmB:', kmB, 'jarak:', jarak);
-        if (f.armadaName) {
-          const armada = ARMADA.find(a => a.name === f.armadaName);
-          if (armada) {
-            next.estBbm = jarak > 0
-              ? Math.ceil(jarak / armada.konsumsi) * armada.hargaBbm
-              : 0;
-          }
+        const armada = ARMADA.find(a => a.name === next.armadaName);
+        if (armada) {
+          next.estBbm = jarak > 0
+            ? Math.ceil(jarak / armada.konsumsi) * armada.hargaBbm
+            : 0;
         }
       }
 
