@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:        #0d0f0e;
+  --bg2:       #141714;
+  --bg3:       #1a1d1a;
+  --bg4:       #202420;
+  --border:    #262b26;
+  --border2:   #2e342e;
+  --text:      #e8ede8;
+  --text2:     #9aa89a;
+  --text3:     #586458;
+  --accent:    #4cff72;
+  --accent2:   #3de060;
+  --accent-dim:#0d2b15;
+  --amber:     #f5a623;
+  --amber-dim: #2a1e06;
+  --red:       #ff5555;
+  --red-dim:   #2a0f0f;
+  --blue:      #5b9cf6;
+  --blue-dim:  #0f1e3a;
+  --radius:    6px;
+  --radius2:   10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 14px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+::selection { background: var(--accent-dim); color: var(--accent); }
+
+input, select, textarea {
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
