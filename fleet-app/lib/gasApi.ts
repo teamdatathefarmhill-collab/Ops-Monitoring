@@ -77,3 +77,15 @@ export const getData = () =>
 
 export const getStats = () =>
   gasGet<{ stats: { armada: string; totalTrip: number; totalKm: number; totalBbm: number; totalToll: number; totalOps: number }[] }>('getStats');
+
+export interface AktifData {
+  armadaName: string;
+  pic: string;
+  driver: string;
+  kategori: string;
+  tujuan: string;
+  jamMulai: string;
+}
+
+export const getAktif = () =>
+  gasGet<{ aktif: AktifData[]; total: number }>('getAktif');
