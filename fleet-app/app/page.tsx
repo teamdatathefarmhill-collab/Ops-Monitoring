@@ -726,8 +726,11 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
     if (r) {
       const armada = ARMADA.find(a => a.name === r.armadaName);
       // KM dari GAS bisa string "216.127" — strip titik ribuan
-      const parseKm = (val: unknown) => Number(String(val).replace(/\./g, '').replace(',', '.')) || 0;
-      const kmAwalNum = parseKm(r.kmAwal);
+      const parseKmLocal = (val: unknown): number => {
+        const n = Number(String(val ?? '').replace(/\./g, '').replace(',', '.'));
+        return isNaN(n) ? 0 : n;
+      };
+      const kmAwalNum = parseKmLocal(r.kmAwal);
       setForm({
         tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
         kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
@@ -740,24 +743,32 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
     }
   }
 
+  // Helper parse KM — handle "216.127" (titik = ribuan) dan plain number
+  const parseKm = (val: unknown): number => {
+    const s = String(val ?? '').trim();
+    if (!s) return 0;
+    // Kalau ada titik tapi tidak ada koma → titik = ribuan (Indonesian format)
+    // Contoh: "216.127" → 216127
+    const stripped = s.replace(/\./g, '').replace(',', '.');
+    const n = Number(stripped);
+    return isNaN(n) ? 0 : n;
+  };
+
   function set(k: keyof TripData, v: unknown) {
     setForm(f => {
       const next = { ...f, [k]: v };
 
       if (k === 'kmAkhir' || k === 'kmAwal') {
-        const parseKm = (val: unknown) => {
-          const n = Number(String(val).replace(/\./g, '').replace(',', '.'));
-          return isNaN(n) ? 0 : n;
-        };
-        const kmA = k === 'kmAwal'  ? parseKm(v) : parseKm(f.kmAwal  || 0);
-        const kmB = k === 'kmAkhir' ? parseKm(v) : parseKm(f.kmAkhir || 0);
+        const kmA = k === 'kmAwal'  ? parseKm(v) : parseKm(f.kmAwal);
+        const kmB = k === 'kmAkhir' ? parseKm(v) : parseKm(f.kmAkhir);
         const jarak = kmB > kmA ? kmB - kmA : 0;
+        console.log('[BBM calc] kmA:', kmA, 'kmB:', kmB, 'jarak:', jarak);
         if (f.armadaName) {
           const armada = ARMADA.find(a => a.name === f.armadaName);
-          if (armada && jarak > 0) {
-            next.estBbm = Math.ceil(jarak / armada.konsumsi) * armada.hargaBbm;
-          } else if (jarak === 0) {
-            next.estBbm = 0;
+          if (armada) {
+            next.estBbm = jarak > 0
+              ? Math.ceil(jarak / armada.konsumsi) * armada.hargaBbm
+              : 0;
           }
         }
       }
