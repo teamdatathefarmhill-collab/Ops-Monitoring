@@ -569,12 +569,13 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
 
   async function ubahStatus(idx: number | string, status: string) {
     const key = String(idx);
+    console.log('[ubahStatus] idx:', idx, 'status:', status);
     setUpdatingId(key);
     const r = await updateStatus(idx, status);
+    console.log('[ubahStatus] response:', JSON.stringify(r));
     setUpdatingId(null);
     if (r.success) {
       setToast(`✅ Status → ${status}`);
-      // Update state lokal saja — tidak re-fetch agar tidak loop
       setRencanas(prev => prev.map(item =>
         String(item.id) === key ? { ...item, status } : item
       ));
