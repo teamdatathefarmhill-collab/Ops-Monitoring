@@ -18,10 +18,11 @@ export interface TripData {
   estToll: number;
   ops: number;
   ket: string;
+  rencanaId?: number | string; // ID rencana untuk update baris existing
 }
 
 export interface RencanaData {
-  id?: number;
+  id?: number | string;
   tgl: string;
   armadaName: string;
   pic: string;
@@ -40,6 +41,7 @@ export interface RencanaData {
   gtKeluar: string;
   ket: string;
   status?: string;
+  dbRowIndex?: number; // baris di sheet Database
 }
 
 export interface GasResponse<T = unknown> {
@@ -68,7 +70,7 @@ async function gasPost<T>(action: string, data: unknown): Promise<GasResponse<T>
 export const appendTrip    = (d: TripData)    => gasPost<{ rowIndex: number }>('appendTrip', d);
 export const appendRencana = (d: RencanaData) => gasPost<{ message: string }>('appendRencana', d);
 export const getRencana    = ()               => gasGet<{ rows: RencanaData[] }>('getRencana');
-export const updateStatus  = (rowIndex: number, status: string) => gasPost('updateStatus', { rowIndex, status });
+export const updateStatus  = (rowIndex: number | string, status: string) => gasPost('updateStatus', { rowIndex, status });
 
 export const getData = () =>
   gasGet<{ rows: Record<string, unknown>[]; total: number }>('getData');
