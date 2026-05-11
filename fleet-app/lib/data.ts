@@ -13,9 +13,11 @@ export const DRIVERS = [
 
 export const KATEGORI = [
   'Angkut Panen',
+  'Angkut Panen Bergas',
   'Angkut Outspec',
   'Langsir Keranjang',
   'Pengiriman Melon',
+  'Pengiriman Melon Semarangan',
   'Penjualan DS',
   'Penagihan Pembayaran Melon',
   'Langsir Media',
@@ -25,7 +27,19 @@ export const KATEGORI = [
   'Angkut Bibit',
   'Pembelian/Ambil Barang',
   'Pembelian Buah',
+  'Pembelian BBM Kebun',
+  'Piket Kebun',
 ];
+
+// Petty cash budget per kategori
+export const PETTY_CASH: Record<string, { bbm: number; toll: number; ops: number }> = {
+  'Angkut Panen Bergas':        { bbm: 200000, toll: 100000, ops: 50000 },
+  'Pengiriman Melon Semarangan':{ bbm: 200000, toll: 100000, ops: 50000 },
+};
+
+export function getPettyCash(kategori: string) {
+  return PETTY_CASH[kategori] ?? null;
+}
 
 // Jarak dari Bergas sebagai titik 0 (km)
 export const LOKASI: Record<string, number> = {
