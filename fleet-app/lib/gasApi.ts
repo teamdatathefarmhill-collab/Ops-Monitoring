@@ -70,7 +70,7 @@ async function gasPost<T>(action: string, data: unknown): Promise<GasResponse<T>
 export const appendTrip    = (d: TripData)    => gasPost<{ rowIndex: number }>('appendTrip', d);
 export const appendRencana = (d: RencanaData) => gasPost<{ message: string }>('appendRencana', d);
 export const getRencana    = ()               => gasGet<{ rows: RencanaData[] }>('getRencana');
-export const updateStatus  = (rowIndex: number | string, status: string) => gasPost('updateStatus', { rowIndex, status });
+export const updateStatus  = (id: number | string, status: string) => gasPost('updateStatus', { id: String(id), status });
 
 export const getData = () =>
   gasGet<{ rows: Record<string, unknown>[]; total: number }>('getData');
