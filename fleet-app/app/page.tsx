@@ -718,18 +718,39 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
   function pilihRencana(id: number | string) {
     setSelectedId(id);
     const r = rencanas.find(x => String(x.id) === String(id));
-    if (r) setForm({
-      tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
-      kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
-      lokasiAwal: r.lokasiAwal, lokasiTujuan: r.lokasiTujuan,
-      kmAwal: r.kmAwal,
-      estBbm: r.estBbm, estToll: r.estToll,
-      rencanaId: r.id, // kirim ke GAS agar update baris yang sama
-    });
+    if (r) {
+      const armada = ARMADA.find(a => a.name === r.armadaName);
+      setForm({
+        tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
+        kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
+        lokasiAwal: r.lokasiAwal, lokasiTujuan: r.lokasiTujuan,
+        kmAwal: r.kmAwal,
+        estBbm: 0,  // akan dihitung ulang saat KM Akhir diisi
+        estToll: armada?.hasToll ? (r.estToll || 0) : 0,  // 0 kalau tidak ada toll
+        rencanaId: r.id,
+      });
+    }
   }
 
   function set(k: keyof TripData, v: unknown) {
-    setForm(f => ({ ...f, [k]: v }));
+    setForm(f => {
+      const next = { ...f, [k]: v };
+
+      // Auto-hitung Est BBM saat KM Akhir atau KM Awal berubah
+      if (k === 'kmAkhir' || k === 'kmAwal') {
+        const kmA = k === 'kmAwal'  ? Number(v) : (f.kmAwal  || 0);
+        const kmB = k === 'kmAkhir' ? Number(v) : (f.kmAkhir || 0);
+        const jarak = kmB > kmA ? kmB - kmA : 0;
+        if (jarak > 0 && f.armadaName) {
+          const armada = ARMADA.find(a => a.name === f.armadaName);
+          if (armada) {
+            next.estBbm = Math.ceil(jarak / armada.konsumsi) * armada.hargaBbm;
+          }
+        }
+      }
+
+      return next;
+    });
   }
 
   const jarak = form.kmAkhir && form.kmAwal ? form.kmAkhir - form.kmAwal : 0;
