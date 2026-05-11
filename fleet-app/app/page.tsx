@@ -485,9 +485,10 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
   const init = { tgl: today(), kmAwal: 0, jarakEst: 0, estBbm: 0, estToll: 0 };
   const [form, setForm]       = useState<Partial<RencanaData>>(init);
   const [rencanas, setRencanas] = useState<RencanaData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [waText, setWaText]   = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [waText, setWaText]     = useState('');
   const [fetching, setFetching] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const selectedArmada = ARMADA.find(a => a.name === form.armadaName);
 
@@ -565,9 +566,16 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
   }
 
   async function ubahStatus(idx: number | string, status: string) {
-    await updateStatus(idx, status);
+    const key = String(idx);
+    setUpdatingId(key);
+    const r = await updateStatus(idx, status);
+    if (r.success) {
+      setToast(`✅ Status → ${status}`);
+    } else {
+      setToast(`❌ Gagal update status`);
+    }
     await loadRencana();
-    setToast(`Status → ${status}`);
+    setUpdatingId(null);
   }
 
   return (
@@ -645,10 +653,10 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
       )}
 
       <Card>
-        <SectionTitle>Daftar Rencana</SectionTitle>
-        {fetching ? <EmptyState text="Memuat..." /> : !rencanas.length ? <EmptyState text="Belum ada rencana" /> : (
+        <SectionTitle>Daftar Rencana Hari Ini</SectionTitle>
+        {fetching ? <EmptyState text="Memuat..." /> : !rencanas.length ? <EmptyState text="Belum ada rencana hari ini" /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {rencanas.slice().reverse().map((r, i) => (
+            {rencanas.map((r, i) => (
               <div key={i} style={{
                 padding: '11px 13px', background: 'var(--bg3)', borderRadius: 'var(--radius)',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
@@ -666,8 +674,13 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                  <Btn size="sm" variant="success" onClick={() => ubahStatus(String(r.id ?? i + 2), 'Jadi')}>✓ Jadi</Btn>
-                  <Btn size="sm" variant="danger"  onClick={() => ubahStatus(String(r.id ?? i + 2), 'Batal')}>✕</Btn>
+                  <Btn size="sm" variant="success"
+                    loading={updatingId === String(r.id ?? i + 2)}
+                    disabled={!!updatingId}
+                    onClick={() => ubahStatus(String(r.id ?? i + 2), 'Jadi')}>✓ Jadi</Btn>
+                  <Btn size="sm" variant="danger"
+                    disabled={!!updatingId}
+                    onClick={() => ubahStatus(String(r.id ?? i + 2), 'Batal')}>✕</Btn>
                 </div>
               </div>
             ))}
