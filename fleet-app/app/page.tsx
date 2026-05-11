@@ -496,9 +496,9 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     const r = await getRencana();
     if (r.success && r.data) setRencanas((r.data as { rows: RencanaData[] }).rows);
     setFetching(false);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadRencana(); }, [loadRencana]);
+  useEffect(() => { loadRencana(); }, []); // run sekali saat mount// eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-hitung BBM dari jarak
   useEffect(() => {
@@ -571,10 +571,13 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     const r = await updateStatus(idx, status);
     if (r.success) {
       setToast(`✅ Status → ${status}`);
+      // Update state lokal langsung — tidak perlu re-fetch
+      setRencanas(prev => prev.map(item =>
+        String(item.id) === key ? { ...item, status } : item
+      ));
     } else {
       setToast(`❌ Gagal update status`);
     }
-    await loadRencana();
     setUpdatingId(null);
   }
 
@@ -700,14 +703,17 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
   const [loading, setLoading] = useState(false);
   const [waText, setWaText]   = useState('');
 
-  useEffect(() => {
-    getRencana().then(r => {
-      if (r.success && r.data) {
-        const rows = (r.data as { rows: RencanaData[] }).rows;
-        setRencanas(rows.filter(x => x.status?.toLowerCase() === 'jadi'));
-      }
-    });
-  }, []);
+  // Load semua rencana hari ini termasuk yang sudah Jadi
+  const loadForRealisasi = useCallback(async () => {
+    const r = await getRencana();
+    if (r.success && r.data) {
+      const rows = (r.data as { rows: RencanaData[] }).rows;
+      // Tampilkan semua status (Rencana & Jadi) — driver bisa isi realisasi keduanya
+      setRencanas(rows);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { loadForRealisasi(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function pilihRencana(id: number | string) {
     setSelectedId(id);
