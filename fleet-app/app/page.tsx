@@ -725,13 +725,16 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
     const r = rencanas.find(x => String(x.id) === String(id));
     if (r) {
       const armada = ARMADA.find(a => a.name === r.armadaName);
+      // KM dari GAS bisa string "216.127" — strip titik ribuan
+      const parseKm = (val: unknown) => Number(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+      const kmAwalNum = parseKm(r.kmAwal);
       setForm({
         tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
         kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
         lokasiAwal: r.lokasiAwal, lokasiTujuan: r.lokasiTujuan,
-        kmAwal: r.kmAwal,
-        estBbm: 0,  // akan dihitung ulang saat KM Akhir diisi
-        estToll: armada?.hasToll ? (r.estToll || 0) : 0,  // 0 kalau tidak ada toll
+        kmAwal: kmAwalNum,
+        estBbm: 0,  // dihitung ulang saat KM Akhir diisi
+        estToll: armada?.hasToll ? (r.estToll || 0) : 0,
         rencanaId: r.id,
       });
     }
@@ -742,15 +745,19 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
       const next = { ...f, [k]: v };
 
       if (k === 'kmAkhir' || k === 'kmAwal') {
-        // KM dari sheet bisa string "216.127" (titik sebagai pemisah ribuan) — strip dulu
-        const parseKm = (val: unknown) => Number(String(val).replace(/\./g, '').replace(',', '.'));
+        const parseKm = (val: unknown) => {
+          const n = Number(String(val).replace(/\./g, '').replace(',', '.'));
+          return isNaN(n) ? 0 : n;
+        };
         const kmA = k === 'kmAwal'  ? parseKm(v) : parseKm(f.kmAwal  || 0);
         const kmB = k === 'kmAkhir' ? parseKm(v) : parseKm(f.kmAkhir || 0);
         const jarak = kmB > kmA ? kmB - kmA : 0;
-        if (jarak > 0 && f.armadaName) {
+        if (f.armadaName) {
           const armada = ARMADA.find(a => a.name === f.armadaName);
-          if (armada) {
+          if (armada && jarak > 0) {
             next.estBbm = Math.ceil(jarak / armada.konsumsi) * armada.hargaBbm;
+          } else if (jarak === 0) {
+            next.estBbm = 0;
           }
         }
       }
