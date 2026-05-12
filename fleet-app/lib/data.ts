@@ -79,35 +79,39 @@ export function hitungMultiKategori(kategoriStr: string, armadaName: string): {
   const budgetTollTotal = isKombinasi ? 150000 : (kats.some(k => !!getPettyCash(k)) ? 100000 : 0);
 
   if (isKombinasi) {
-    // Rute nyambung: GT Bawen → GT Bandara → GT Srondol
-    const tollAngkut = getAutoToll('Angkut Panen Bergas');       // 78.500
+    const tollAngkut = getAutoToll('Angkut Panen Bergas');        // 78.500
     const tollKirim  = getAutoToll('Pengiriman Melon Semarangan'); // 106.000
-    const tollTotal  = tollAngkut + tollKirim;                    // 184.500
+    const tollTotal  = tollAngkut + tollKirim;                     // 184.500
+    let   maxBbm     = 0;
 
     kats.forEach(k => {
-      const pc  = getPettyCash(k);
-      const bbm = pc?.bbm ?? 0;
-      const ops = pc?.ops ?? 0;
+      const pc   = getPettyCash(k);
+      const bbm  = pc?.bbm ?? 0;
+      const ops  = pc?.ops ?? 0;
       const toll = k === 'Angkut Panen Bergas' ? tollAngkut : tollKirim;
-      estBbm += bbm;
+      if (bbm > maxBbm) maxBbm = bbm; // ambil yang terbesar
       estOps += ops;
       detail.push({ kategori: k, bbm, toll, budget: 0, ops });
     });
+    estBbm  = maxBbm;
     estToll = tollTotal;
   } else {
+    let maxBbm = 0;
     kats.forEach(k => {
       const pc     = getPettyCash(k);
       const toll   = getAutoToll(k);
       const bbm    = pc?.bbm ?? 0;
       const ops    = pc?.ops ?? 0;
       const budget = pc?.toll ?? 0;
-      estBbm  += bbm;
+      if (bbm > maxBbm) maxBbm = bbm; // ambil yang terbesar
       estToll += toll;
       estOps  += ops;
       detail.push({ kategori: k, bbm, toll, budget, ops });
     });
+    estBbm = maxBbm;
   }
 
+  // Total hanya BBM + E-toll (Ops tidak dimasukkan ke total)
   return { estBbm, estToll, budgetToll: budgetTollTotal, estOps, detail };
 }
 
