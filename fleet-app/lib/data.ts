@@ -33,9 +33,10 @@ export const KATEGORI = [
 
 // Petty cash budget per kategori
 // Budget petty cash per kategori (uang yang dikasih ke driver)
+// Budget = uang yang dikasih ke driver (bukan tarif aktual tol)
 export const PETTY_CASH: Record<string, { bbm: number; toll: number; ops: number }> = {
-  'Angkut Panen Bergas':        { bbm: 200000, toll: 78500,  ops: 50000 },
-  'Pengiriman Melon Semarangan':{ bbm: 200000, toll: 106000, ops: 50000 },
+  'Angkut Panen Bergas':        { bbm: 200000, toll: 100000, ops: 50000 },
+  'Pengiriman Melon Semarangan':{ bbm: 200000, toll: 100000, ops: 50000 },
 };
 
 export function getPettyCash(kategori: string) {
@@ -59,57 +60,55 @@ export function getAutoToll(kategori: string): number {
 }
 
 // Hitung total estimasi dari multi-kategori (pisah dengan ' + ')
-// Kalau dua kategori punya rute yang nyambung (mis. Bergas+Semarang),
-// toll tidak di-double — cukup dijumlah satu kali per segmen.
 export function hitungMultiKategori(kategoriStr: string, armadaName: string): {
   estBbm: number;
-  estToll: number;
+  estToll: number;       // tarif aktual toll
+  budgetToll: number;    // budget yang dikasih ke driver
   estOps: number;
-  detail: { kategori: string; bbm: number; toll: number; ops: number }[];
+  detail: { kategori: string; bbm: number; toll: number; budget: number; ops: number }[];
 } {
   const kats = (kategoriStr || '').split(' + ').filter(Boolean);
   let estBbm = 0, estToll = 0, estOps = 0;
-  const detail: { kategori: string; bbm: number; toll: number; ops: number }[] = [];
+  const detail: { kategori: string; bbm: number; toll: number; budget: number; ops: number }[] = [];
 
-  // Deteksi kombinasi khusus yang rutenya nyambung
-  const hasAngkutPanen  = kats.includes('Angkut Panen Bergas');
-  const hasKirimanSemg  = kats.includes('Pengiriman Melon Semarangan');
+  const hasAngkutPanen = kats.includes('Angkut Panen Bergas');
+  const hasKirimanSemg = kats.includes('Pengiriman Melon Semarangan');
+  const isKombinasi    = hasAngkutPanen && hasKirimanSemg;
 
-  if (hasAngkutPanen && hasKirimanSemg) {
+  // Budget toll: kombinasi keduanya = 150.000, salah satu = 100.000
+  const budgetTollTotal = isKombinasi ? 150000 : (kats.some(k => !!getPettyCash(k)) ? 100000 : 0);
+
+  if (isKombinasi) {
     // Rute nyambung: GT Bawen → GT Bandara → GT Srondol
-    // = tarif GT Bawen→Srondol (lebih murah dari beli dua tiket terpisah)
-    // Tapi karena masuk di Bawen dan keluar di Srondol, pakai tarif langsung
-    const tollGabung = TOLL_TARIF['GT Bawen']?.['GT Srondol']
-                    ?? TOLL_TARIF['GT Ngemplak']?.['GT Srondol']
-                    ?? (getAutoToll('Angkut Panen Bergas') + getAutoToll('Pengiriman Melon Semarangan'));
+    const tollAngkut = getAutoToll('Angkut Panen Bergas');       // 78.500
+    const tollKirim  = getAutoToll('Pengiriman Melon Semarangan'); // 106.000
+    const tollTotal  = tollAngkut + tollKirim;                    // 184.500
 
     kats.forEach(k => {
       const pc  = getPettyCash(k);
       const bbm = pc?.bbm ?? 0;
       const ops = pc?.ops ?? 0;
+      const toll = k === 'Angkut Panen Bergas' ? tollAngkut : tollKirim;
       estBbm += bbm;
       estOps += ops;
-      // Toll dibagi per segmen untuk display, tapi total = tollGabung
-      const tollSegmen = k === 'Angkut Panen Bergas'
-        ? getAutoToll('Angkut Panen Bergas')
-        : tollGabung - getAutoToll('Angkut Panen Bergas');
-      detail.push({ kategori: k, bbm, toll: tollSegmen, ops });
+      detail.push({ kategori: k, bbm, toll, budget: 0, ops });
     });
-    estToll = tollGabung;
+    estToll = tollTotal;
   } else {
     kats.forEach(k => {
-      const pc   = getPettyCash(k);
-      const toll = getAutoToll(k);
-      const bbm  = pc?.bbm ?? 0;
-      const ops  = pc?.ops ?? 0;
+      const pc     = getPettyCash(k);
+      const toll   = getAutoToll(k);
+      const bbm    = pc?.bbm ?? 0;
+      const ops    = pc?.ops ?? 0;
+      const budget = pc?.toll ?? 0;
       estBbm  += bbm;
       estToll += toll;
       estOps  += ops;
-      detail.push({ kategori: k, bbm, toll, ops });
+      detail.push({ kategori: k, bbm, toll, budget, ops });
     });
   }
 
-  return { estBbm, estToll, estOps, detail };
+  return { estBbm, estToll, budgetToll: budgetTollTotal, estOps, detail };
 }
 
 // Jarak dari Bergas sebagai titik 0 (km)
