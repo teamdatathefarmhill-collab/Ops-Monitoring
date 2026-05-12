@@ -41,6 +41,20 @@ export function getPettyCash(kategori: string) {
   return PETTY_CASH[kategori] ?? null;
 }
 
+// GT otomatis per kategori — { masuk, keluar } sekali jalan, dikalikan 2 untuk PP
+export const TOLL_AUTO: Record<string, { gtMasuk: string; gtKeluar: string }> = {
+  'Angkut Panen Bergas':        { gtMasuk: 'GT Banyudono', gtKeluar: 'GT Bawen' },
+  'Pengiriman Melon Semarangan':{ gtMasuk: 'GT Adi Soemarmo (Bandara)', gtKeluar: 'GT Srondol' },
+};
+
+// Hitung e-toll otomatis dari kategori (PP = x2)
+export function getAutoToll(kategori: string): number {
+  const gt = TOLL_AUTO[kategori];
+  if (!gt) return 0;
+  const tarif = TOLL_TARIF[gt.gtMasuk]?.[gt.gtKeluar] ?? 0;
+  return tarif * 2; // PP
+}
+
 // Jarak dari Bergas sebagai titik 0 (km)
 export const LOKASI: Record<string, number> = {
   'Bergas':                  0,
