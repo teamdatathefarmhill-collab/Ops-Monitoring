@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ARMADA, DRIVERS, KATEGORI, LOKASI_KEYS, GT_MASUK, GT_KELUAR,
+  ARMADA, DRIVERS, KATEGORI, LOKASI_LIST, GT_MASUK, GT_KELUAR,
   getJarak, getTollTarif, hitungEstBbm, getPettyCash, fmtRupiah, fmtTgl, fmtTglShort, today,
 } from '@/lib/data';
 import {
@@ -358,6 +358,137 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
+// Multi-select lokasi — bisa pilih lebih dari satu, hasilnya digabung dengan " & "
+function MultiLocasi({
+  label, value, onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = value ? value.split(' & ').filter(Boolean) : [];
+
+  function toggle(loc: string) {
+    const idx = selected.indexOf(loc);
+    const next = idx >= 0
+      ? selected.filter(x => x !== loc)
+      : [...selected, loc];
+    onChange(next.join(' & '));
+  }
+
+  function clear() { onChange(''); }
+
+  // Close on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  return (
+    <Field label={label}>
+      <div ref={ref} style={{ position: 'relative' }}>
+        {/* Trigger */}
+        <div
+          onClick={() => setOpen(o => !o)}
+          style={{
+            ...css.field,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flexWrap: 'wrap',
+            minHeight: 38,
+            borderColor: open ? 'var(--accent)' : 'var(--border)',
+            background: open ? 'var(--bg4)' : 'var(--bg3)',
+            paddingRight: 32,
+            userSelect: 'none',
+          }}
+        >
+          {selected.length === 0 ? (
+            <span style={{ color: 'var(--text3)' }}>Pilih lokasi...</span>
+          ) : selected.map(s => (
+            <span key={s} style={{
+              background: 'var(--accent-dim)', color: 'var(--accent)',
+              borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              {s}
+              <span
+                onClick={e => { e.stopPropagation(); toggle(s); }}
+                style={{ cursor: 'pointer', opacity: 0.7, fontWeight: 400 }}
+              >×</span>
+            </span>
+          ))}
+          <svg style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2">
+            <polyline points={open ? "18 15 12 9 6 15" : "6 9 12 15 18 9"} />
+          </svg>
+        </div>
+
+        {/* Dropdown */}
+        {open && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 999,
+            background: 'var(--bg2)', border: '1px solid var(--border2)',
+            borderRadius: 'var(--radius2)', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            maxHeight: 280, overflowY: 'auto',
+          }}>
+            {selected.length > 0 && (
+              <div
+                onClick={clear}
+                style={{
+                  padding: '8px 12px', fontSize: 11, color: 'var(--red)',
+                  cursor: 'pointer', borderBottom: '1px solid var(--border)',
+                  fontWeight: 600,
+                }}
+              >
+                ✕ Hapus semua
+              </div>
+            )}
+            {LOKASI_LIST.map(loc => {
+              const isSelected = selected.includes(loc);
+              return (
+                <div
+                  key={loc}
+                  onClick={() => toggle(loc)}
+                  style={{
+                    padding: '9px 12px',
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: isSelected ? 'var(--accent-dim)' : 'transparent',
+                    color: isSelected ? 'var(--accent)' : 'var(--text)',
+                    fontSize: 13,
+                    borderBottom: '1px solid var(--border)',
+                  }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg3)'; }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style={{
+                    width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border2)'}`,
+                    background: isSelected ? 'var(--accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0a1a0a" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </span>
+                  {loc}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Field>
+  );
+}
+
 // ─── MONITOR ──────────────────────────────────────────────────
 
 function TabMonitor() {
@@ -607,14 +738,8 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
           <Input label="Jam Mulai" type="time" value={form.jamMulai ?? ''} onChange={e => set('jamMulai', e.target.value)} />
           <Input label="Perkiraan Selesai" type="time" value={form.jamSelesai ?? ''} onChange={e => set('jamSelesai', e.target.value)} />
           <Input label="KM Awal (odometer)" type="number" value={form.kmAwal || ''} onChange={e => set('kmAwal', Number(e.target.value))} placeholder="Contoh: 96450" />
-          <Select label="Lokasi Awal" value={form.lokasiAwal ?? ''} onChange={e => set('lokasiAwal', e.target.value)}>
-            <option value="">Pilih lokasi awal...</option>
-            {LOKASI_KEYS.map(l => <option key={l} value={l}>{l}</option>)}
-          </Select>
-          <Select label="Lokasi Tujuan" value={form.lokasiTujuan ?? ''} onChange={e => set('lokasiTujuan', e.target.value)}>
-            <option value="">Pilih lokasi tujuan...</option>
-            {LOKASI_KEYS.map(l => <option key={l} value={l}>{l}</option>)}
-          </Select>
+          <MultiLocasi label="Lokasi Awal" value={form.lokasiAwal ?? ''} onChange={v => set('lokasiAwal', v)} />
+          <MultiLocasi label="Lokasi Tujuan" value={form.lokasiTujuan ?? ''} onChange={v => set('lokasiTujuan', v)} />
           <Input label="Est. Jarak PP (km)" type="number" value={form.jarakEst || ''} onChange={e => set('jarakEst', Number(e.target.value))} />
         </div>
 
@@ -841,7 +966,7 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               <Input label="Jam Selesai" type="time" value={form.jamSelesai ?? ''} onChange={e => set('jamSelesai', e.target.value)} />
-              <Input label="Lokasi Akhir" value={form.lokasiAkhir ?? ''} onChange={e => set('lokasiAkhir', e.target.value)} placeholder="Contoh: Kantor Cinde" />
+              <MultiLocasi label="Lokasi Akhir" value={form.lokasiAkhir ?? ''} onChange={v => set('lokasiAkhir', v)} />
               <Input label="KM Akhir" type="number" value={form.kmAkhir || ''} onChange={e => set('kmAkhir', Number(e.target.value))} />
               <Input label="Est. BBM (Rp)" type="number" value={form.estBbm || ''} onChange={e => set('estBbm', Number(e.target.value))} />
               <Input label="Est. E-toll (Rp)" type="number" value={form.estToll || ''} onChange={e => set('estToll', Number(e.target.value))} />
