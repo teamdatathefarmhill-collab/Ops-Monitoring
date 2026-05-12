@@ -7,6 +7,7 @@ import {
 } from '@/lib/data';
 import {
   appendTrip, appendRencana, getData, getRencana, getStats, updateStatus, getAktif,
+  deleteRencana, updateRencana,
   RencanaData, TripData, AktifData,
 } from '@/lib/gasApi';
 import {
@@ -613,8 +614,9 @@ function TabMonitor() {
 // ─── RENCANA ──────────────────────────────────────────────────
 
 function TabRencana({ setToast }: { setToast: (s: string) => void }) {
-  const init = { tgl: today(), kmAwal: 0, jarakEst: 0, estBbm: 0, estToll: 0 };
-  const [form, setForm]       = useState<Partial<RencanaData>>(init);
+  const init: Partial<RencanaData> = { tgl: today(), kmAwal: 0, jarakEst: 0, estBbm: 0, estToll: 0 };
+  const [form, setForm]         = useState<Partial<RencanaData>>(init);
+  const [editId, setEditId]     = useState<string | null>(null); // ID rencana yang sedang diedit
   const [rencanas, setRencanas] = useState<RencanaData[]>([]);
   const [loading, setLoading]   = useState(false);
   const [waText, setWaText]     = useState('');
@@ -625,35 +627,31 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
 
   const loadRencana = useCallback(async () => {
     const r = await getRencana();
-    if (r.success && r.data) {
-      setRencanas((r.data as { rows: RencanaData[] }).rows);
-    }
+    if (r.success && r.data) setRencanas((r.data as { rows: RencanaData[] }).rows);
     setFetching(false);
-  }, []); // stabil — tidak ada deps yang berubah
+  }, []);
 
-  useEffect(() => { loadRencana(); }, []); // run sekali saat mount
+  useEffect(() => { loadRencana(); }, []);
 
-  // Auto-hitung BBM dari jarak
+  // Auto-hitung BBM dari lokasi
   useEffect(() => {
     if (form.lokasiAwal && form.lokasiTujuan && form.armadaName) {
       const jarak  = getJarak(form.lokasiAwal, form.lokasiTujuan);
       const estBbm = hitungEstBbm(form.lokasiAwal, form.lokasiTujuan, form.armadaName);
-      setForm(f => {
-        // Kalau ada petty cash, hitung sisa dari budget (jangan replace budget)
-        // estBbm tetap diisi dari kalkulasi KM, biar bisa dihitung sisa-nya
-        return { ...f, jarakEst: jarak, estBbm };
-      });
+      setForm(f => ({ ...f, jarakEst: jarak || 0, estBbm }));
+    } else {
+      setForm(f => ({ ...f, jarakEst: 0 }));
     }
   }, [form.lokasiAwal, form.lokasiTujuan, form.armadaName]);
 
+  // Auto-fill e-toll dari GT manual
   useEffect(() => {
     if (form.gtMasuk && form.gtKeluar) {
-      const tarif = getTollTarif(form.gtMasuk, form.gtKeluar);
-      setForm(f => ({ ...f, estToll: tarif * 2 }));
+      setForm(f => ({ ...f, estToll: getTollTarif(f.gtMasuk!, f.gtKeluar!) * 2 }));
     }
   }, [form.gtMasuk, form.gtKeluar]);
 
-  // Auto-fill e-toll saat kategori berubah
+  // Auto-fill e-toll dari kategori
   useEffect(() => {
     if (!form.kategori) return;
     const autoToll = getAutoToll(form.kategori);
@@ -676,49 +674,82 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     });
   }
 
+  function mulaiEdit(r: RencanaData) {
+    setForm({ ...r });
+    setEditId(String(r.id));
+    setWaText('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function batalEdit() {
+    setForm(init);
+    setEditId(null);
+    setWaText('');
+  }
+
   async function simpan() {
     if (!form.armadaName || !form.driver || !form.tgl) {
       setToast('⚠️ Isi armada, driver, dan tanggal dulu!'); return;
     }
     setLoading(true);
-    const r = await appendRencana(form as RencanaData);
-    setToast(r.success ? '✅ Rencana tersimpan!' : `❌ Gagal: ${r.error}`);
-    if (r.success) { await loadRencana(); setForm(init); setWaText(''); }
+    if (editId) {
+      // Mode edit — update baris existing
+      const r = await updateRencana({ ...form as RencanaData, id: editId });
+      setToast(r.success ? '✅ Rencana diupdate!' : `❌ Gagal: ${r.error}`);
+      if (r.success) { await loadRencana(); setForm(init); setEditId(null); setWaText(''); }
+    } else {
+      // Mode baru
+      const r = await appendRencana(form as RencanaData);
+      setToast(r.success ? '✅ Rencana tersimpan!' : `❌ Gagal: ${r.error}`);
+      if (r.success) { await loadRencana(); setForm(init); setWaText(''); }
+    }
     setLoading(false);
   }
 
-  function draftWa() {
-    if (!form.armadaName) { setToast('Pilih armada dulu'); return; }
-    setWaText(waRencana({
-      armadaName: form.armadaName!, pic: form.pic!, driver: form.driver!, kategori: form.kategori!,
-      tujuan: form.tujuan!, tgl: form.tgl!, jamMulai: form.jamMulai!,
-      kmAwal: form.kmAwal, lokasiAwal: form.lokasiAwal, lokasiTujuan: form.lokasiTujuan,
-      jarakEst: form.jarakEst, estBbm: form.estBbm, estToll: form.estToll,
-      gtMasuk: form.gtMasuk, gtKeluar: form.gtKeluar,
-    }));
+  async function hapus(r: RencanaData) {
+    if (!confirm(`Hapus rencana ${r.armadaName}?`)) return;
+    const res = await deleteRencana(String(r.id));
+    if (res.success) {
+      setToast('🗑️ Rencana dihapus');
+      setRencanas(prev => prev.filter(x => String(x.id) !== String(r.id)));
+    } else {
+      setToast('❌ Gagal hapus');
+    }
   }
 
-  async function ubahStatus(idx: number | string, status: string) {
-    const key = String(idx);
-    console.log('[ubahStatus] idx:', idx, 'status:', status);
+  async function ubahStatus(r: RencanaData, status: string) {
+    const key = String(r.id);
     setUpdatingId(key);
-    const r = await updateStatus(idx, status);
-    console.log('[ubahStatus] response:', JSON.stringify(r));
+    const res = await updateStatus(key, status);
     setUpdatingId(null);
-    if (r.success) {
+    if (res.success) {
       setToast(`✅ Status → ${status}`);
       setRencanas(prev => prev.map(item =>
         String(item.id) === key ? { ...item, status } : item
       ));
     } else {
-      setToast(`❌ Gagal: ${r.error ?? 'updateStatus gagal'}`);
+      setToast('❌ Gagal update status');
     }
+  }
+
+  function draftWa() {
+    if (!form.armadaName) { setToast('Pilih armada dulu'); return; }
+    setWaText(waRencana({
+      armadaName: form.armadaName!, pic: form.pic!, driver: form.driver!,
+      kategori: form.kategori!, tujuan: form.tujuan!, tgl: form.tgl!,
+      jamMulai: form.jamMulai!, kmAwal: form.kmAwal,
+      lokasiAwal: form.lokasiAwal, lokasiTujuan: form.lokasiTujuan,
+      jarakEst: form.jarakEst, estBbm: form.estBbm, estToll: form.estToll,
+    }));
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Card>
-        <SectionTitle>Form Rencana Penggunaan Armada</SectionTitle>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <SectionTitle>{editId ? '✏️ Edit Rencana' : 'Form Rencana Penggunaan Armada'}</SectionTitle>
+          {editId && <Btn size="sm" variant="ghost" onClick={batalEdit}>Batal Edit</Btn>}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           <Input label="Tanggal" type="date" value={form.tgl} onChange={e => set('tgl', e.target.value)} />
           <Select label="Armada" value={form.armadaName ?? ''} onChange={e => set('armadaName', e.target.value)}>
@@ -740,14 +771,13 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
           <Input label="KM Awal (odometer)" type="number" value={form.kmAwal || ''} onChange={e => set('kmAwal', Number(e.target.value))} placeholder="Contoh: 96450" />
           <MultiLocasi label="Lokasi Awal" value={form.lokasiAwal ?? ''} onChange={v => set('lokasiAwal', v)} />
           <MultiLocasi label="Lokasi Tujuan" value={form.lokasiTujuan ?? ''} onChange={v => set('lokasiTujuan', v)} />
-          <Input label="Est. Jarak PP (km)" type="number" value={form.jarakEst || ''} onChange={e => set('jarakEst', Number(e.target.value))} />
+          <Input label="Est. Jarak PP (km)" type="number" value={form.jarakEst ?? 0} onChange={e => set('jarakEst', Number(e.target.value))} />
         </div>
 
-        {/* Toll — hanya muncul jika armada hasToll */}
         {selectedArmada?.hasToll && (
           <>
             <Divider />
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 10 }}>🛣️ Gerbang Tol (opsional)</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 10 }}>🛣️ Gerbang Tol (opsional — override otomatis)</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Select label="GT Masuk" value={form.gtMasuk ?? ''} onChange={e => set('gtMasuk', e.target.value)}>
                 <option value="">Pilih GT masuk...</option>
@@ -763,20 +793,21 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
 
         <Divider />
         <Textarea label="Keterangan Tambahan" value={form.ket ?? ''} onChange={e => set('ket', e.target.value)} placeholder="Info penting lainnya..." />
-
         <EstBox bbm={form.estBbm} toll={form.estToll} kategori={form.kategori} />
 
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <Btn variant="primary" onClick={simpan} loading={loading}>Simpan Rencana</Btn>
+          <Btn variant="primary" onClick={simpan} loading={loading}>
+            {editId ? 'Simpan Perubahan' : 'Simpan Rencana'}
+          </Btn>
           <Btn onClick={draftWa}>📤 Draft WA</Btn>
-          <Btn variant="ghost" onClick={() => { setForm(init); setWaText(''); }}>Reset</Btn>
+          <Btn variant="ghost" onClick={batalEdit}>Reset</Btn>
         </div>
       </Card>
 
       {waText && (
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <SectionTitle>Draft WA Rencana</SectionTitle>
+            <SectionTitle>Draft WA</SectionTitle>
             <Btn size="sm" onClick={() => { navigator.clipboard.writeText(waText); setToast('📋 Disalin!'); }}>Salin</Btn>
           </div>
           <pre style={{ whiteSpace: 'pre-wrap', fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: 'var(--text2)', lineHeight: 1.65, background: 'var(--bg3)', padding: 12, borderRadius: 'var(--radius)' }}>{waText}</pre>
@@ -787,34 +818,44 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
         <SectionTitle>Daftar Rencana Hari Ini</SectionTitle>
         {fetching ? <EmptyState text="Memuat..." /> : !rencanas.length ? <EmptyState text="Belum ada rencana hari ini" /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {rencanas.map((r, i) => (
-              <div key={i} style={{
-                padding: '11px 13px', background: 'var(--bg3)', borderRadius: 'var(--radius)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-              }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{r.armadaName}</span>
-                    <StatusChip status={r.status ?? 'rencana'} />
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text2)' }}>
-                    {fmtTglShort(r.tgl)} · {r.jamMulai} · {r.driver}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
-                    {r.kategori}{r.tujuan ? ` → ${r.tujuan}` : r.lokasiTujuan ? ` → ${r.lokasiTujuan}` : ''}
+            {rencanas.map((r) => {
+              const key = String(r.id);
+              const isJadi = r.status?.toLowerCase() === 'jadi';
+              return (
+                <div key={key} style={{
+                  padding: '11px 13px', background: 'var(--bg3)', borderRadius: 'var(--radius)',
+                  border: editId === key ? '1px solid var(--accent)' : '1px solid transparent',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }} onClick={() => mulaiEdit(r)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{r.armadaName}</span>
+                        <StatusChip status={r.status ?? 'rencana'} />
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text2)' }}>
+                        {fmtTglShort(r.tgl)} · {r.jamMulai} · {r.driver}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
+                        {r.kategori}{r.tujuan ? ` → ${r.tujuan}` : r.lokasiTujuan ? ` → ${r.lokasiTujuan}` : ''}
+                      </div>
+                    </div>
+
+                    {/* Tombol hanya tampil kalau belum Jadi */}
+                    {!isJadi && (
+                      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                        <Btn size="sm" variant="success"
+                          loading={updatingId === key}
+                          disabled={!!updatingId}
+                          onClick={() => ubahStatus(r, 'Jadi')}>✓ Jadi</Btn>
+                        <Btn size="sm" variant="danger"
+                          disabled={!!updatingId}
+                          onClick={() => hapus(r)}>🗑️</Btn>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                  <Btn size="sm" variant="success"
-                    loading={updatingId === String(r.id ?? i + 2)}
-                    disabled={!!updatingId}
-                    onClick={() => ubahStatus(String(r.id ?? i + 2), 'Jadi')}>✓ Jadi</Btn>
-                  <Btn size="sm" variant="danger"
-                    disabled={!!updatingId}
-                    onClick={() => ubahStatus(String(r.id ?? i + 2), 'Batal')}>✕</Btn>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
