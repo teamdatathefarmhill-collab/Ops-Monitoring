@@ -70,6 +70,54 @@ export const LOKASI: Record<string, number> = {
 
 export const LOKASI_KEYS = Object.keys(LOKASI).sort();
 
+// Lokasi spesifik The Farmhill untuk dropdown
+export const LOKASI_LIST = [
+  // Kantor & GH
+  'Kantor Cinde',
+  'GH Tohudan',
+  'GH Colomadu',
+  'GH Sawahan',
+  'GH Bergas',
+  'GH Safaritex',
+  'GH Densus',
+  'GH Pradita',
+  // Rumah
+  'Rumah pak Agung Ambarawa',
+  'Rumah om Anang Salatiga',
+  // Lokasi DS & Medis
+  'Gubernuran',
+  'Tarubudaya',
+  'RS Columbia',
+  'RS Primaya',
+  // Belanja Buah
+  'LMU',
+  'Home Fresh',
+  'Sewu Segar',
+  'Pasar Mranggen',
+  // Outlet
+  'Outlet Semarangan',
+  'HPM Solo Square',
+  'Lotte Soba',
+  'HPM Pakuwon Solo',
+  // Lokasi Umum
+  'Ambarawa',
+  'Bawen',
+  'Bergas',
+  'Boyolali',
+  'Demak',
+  'Kebun Tohudan',
+  'Kendal',
+  'Klaten',
+  'Magelang',
+  'Ngemplak (Boyolali)',
+  'Panen Bergas',
+  'Salatiga',
+  'Semarang (Kota)',
+  'Solo / Surakarta',
+  'Sukoharjo',
+  'Ungaran',
+];
+
 export function getJarak(a: string, b: string): number {
   if (!a || !b || a === b) return 0;
   const d = Math.abs((LOKASI[a] ?? 0) - (LOKASI[b] ?? 0));
