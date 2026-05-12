@@ -13,7 +13,7 @@ import {
   waRencana, waRealisasi, waInfoPagi, waRekapSore, waReminderMassal,
 } from '@/lib/waGenerator';
 
-type Tab = 'monitor' | 'rencana' | 'realisasi' | 'log' | 'wa';
+type Tab = 'monitor' | 'rencana' | 'realisasi';
 
 // ─── PRIMITIVES ────────────────────────────────────────────────
 
@@ -1209,57 +1209,142 @@ function TabDraftWa({ setToast }: { setToast: (s: string) => void }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'monitor',    label: 'Monitor' },
-  { key: 'rencana',   label: 'Rencana' },
-  { key: 'realisasi', label: 'Realisasi' },
-  { key: 'log',       label: 'Log' },
-  { key: 'wa',        label: 'Draft WA' },
+const THEMES = [
+  { key: 'forest', label: '🌿 Forest' },
+  { key: 'ocean',  label: '🌊 Ocean' },
+  { key: 'earth',  label: '🌰 Earth' },
+  { key: 'light',  label: '☀️ Light' },
+];
+
+const TABS: { key: Tab; label: string; icon: string }[] = [
+  { key: 'monitor',    label: 'Monitor',    icon: '📡' },
+  { key: 'rencana',   label: 'Rencana',    icon: '📋' },
+  { key: 'realisasi', label: 'Realisasi',  icon: '✅' },
 ];
 
 export default function Home() {
-  const [tab, setTab]   = useState<Tab>('monitor');
+  const [tab, setTab]     = useState<Tab>('monitor');
   const [toast, setToast] = useState('');
+  const [theme, setTheme] = useState('forest');
+  const [showTheme, setShowTheme] = useState(false);
   const showToast = useCallback((msg: string) => setToast(msg), []);
+
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  // Load saved theme
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('fleet-theme') : null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  function pickTheme(t: string) {
+    setTheme(t);
+    localStorage.setItem('fleet-theme', t);
+    setShowTheme(false);
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Nav */}
-      <nav style={{
-        borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center',
-        padding: '0 16px', gap: 0, position: 'sticky', top: 0, background: 'var(--bg)',
-        zIndex: 100, backdropFilter: 'blur(8px)',
+      {/* Top bar — logo + theme toggle */}
+      <header style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 16px', borderBottom: '1px solid var(--border)',
+        position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 100,
+        backdropFilter: 'blur(8px)',
       }}>
         <div style={{
-          padding: '13px 16px 13px 0', marginRight: 8,
-          fontSize: 12, fontWeight: 700, color: 'var(--text3)',
-          letterSpacing: '0.12em', fontFamily: "'IBM Plex Mono', monospace",
-          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+          fontSize: 13, fontWeight: 700, color: 'var(--text)',
+          letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace",
+          display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          <span style={{ color: 'var(--accent)' }}>🚛</span> FLEET
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="Fleet" width={28} height={28} style={{ borderRadius: 8 }} />
+          FLEET
         </div>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: '13px 14px', fontSize: 13, fontFamily: "'IBM Plex Sans', sans-serif",
-            fontWeight: tab === t.key ? 600 : 400,
-            color: tab === t.key ? 'var(--text)' : 'var(--text3)',
-            borderBottom: `2px solid ${tab === t.key ? 'var(--accent)' : 'transparent'}`,
-            transition: 'color 0.15s, border-color 0.15s', whiteSpace: 'nowrap',
-          }}>
-            {t.label}
+
+        {/* Theme picker */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowTheme(s => !s)}
+            style={{
+              background: 'var(--bg3)', border: '1px solid var(--border2)',
+              borderRadius: 'var(--radius)', color: 'var(--text2)',
+              padding: '6px 12px', cursor: 'pointer', fontSize: 12,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            🎨 Tema
           </button>
-        ))}
-      </nav>
+          {showTheme && (
+            <div style={{
+              position: 'absolute', right: 0, top: 'calc(100% + 6px)',
+              background: 'var(--bg2)', border: '1px solid var(--border2)',
+              borderRadius: 'var(--radius2)', overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)', zIndex: 200, minWidth: 140,
+            }}>
+              {THEMES.map(t => (
+                <button key={t.key} onClick={() => pickTheme(t.key)} style={{
+                  display: 'block', width: '100%', padding: '10px 14px',
+                  background: theme === t.key ? 'var(--accent-dim)' : 'transparent',
+                  border: 'none', color: theme === t.key ? 'var(--accent)' : 'var(--text2)',
+                  cursor: 'pointer', textAlign: 'left', fontSize: 13,
+                  fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: theme === t.key ? 600 : 400,
+                  borderBottom: '1px solid var(--border)',
+                }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
 
       {/* Content */}
-      <main style={{ maxWidth: 1040, margin: '0 auto', padding: '20px 14px 48px' }}>
-        {tab === 'monitor'    && <TabMonitor />}
-        {tab === 'rencana'    && <TabRencana    setToast={showToast} />}
-        {tab === 'realisasi'  && <TabRealisasi  setToast={showToast} />}
-        {tab === 'log'        && <TabLog />}
-        {tab === 'wa'         && <TabDraftWa    setToast={showToast} />}
+      <main style={{ maxWidth: 1040, margin: '0 auto', padding: '16px 14px 16px' }}>
+        {tab === 'monitor'   && <TabMonitor />}
+        {tab === 'rencana'   && <TabRencana   setToast={showToast} />}
+        {tab === 'realisasi' && <TabRealisasi setToast={showToast} />}
       </main>
+
+      {/* Bottom Nav */}
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        height: 'var(--nav-h)',
+        background: 'var(--bg2)', borderTop: '1px solid var(--border)',
+        display: 'flex', zIndex: 100,
+        backdropFilter: 'blur(12px)',
+      }}>
+        {TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              flex: 1, background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 3,
+              color: active ? 'var(--accent)' : 'var(--text3)',
+              transition: 'color 0.15s',
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              position: 'relative',
+            }}>
+              {active && (
+                <div style={{
+                  position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                  width: 32, height: 3, background: 'var(--accent)',
+                  borderRadius: '0 0 4px 4px',
+                }} />
+              )}
+              <span style={{ fontSize: 20 }}>{t.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                {t.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
 
       {toast && <Toast msg={toast} onClose={() => setToast('')} />}
     </div>
