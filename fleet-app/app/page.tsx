@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ARMADA, DRIVERS, KATEGORI, LOKASI_LIST, GT_MASUK, GT_KELUAR,
-  getJarak, getTollTarif, hitungEstBbm, getPettyCash, fmtRupiah, fmtTgl, fmtTglShort, today,
+  getJarak, getTollTarif, hitungEstBbm, getPettyCash, getAutoToll, fmtRupiah, fmtTgl, fmtTglShort, today,
 } from '@/lib/data';
 import {
   appendTrip, appendRencana, getData, getRencana, getStats, updateStatus, getAktif,
@@ -653,16 +653,16 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     }
   }, [form.gtMasuk, form.gtKeluar]);
 
-  // Kalau kategori punya petty cash & belum ada toll → pakai budget toll sebagai default
+  // Auto-fill e-toll saat kategori berubah
   useEffect(() => {
     if (!form.kategori) return;
-    const pc = getPettyCash(form.kategori);
-    if (!pc) return;
-    // Hanya set kalau belum ada nilai dari GT atau input manual
-    setForm(f => ({
-      ...f,
-      estToll: f.estToll && f.estToll > 0 ? f.estToll : pc.toll,
-    }));
+    const autoToll = getAutoToll(form.kategori);
+    if (autoToll > 0) {
+      setForm(f => ({ ...f, estToll: autoToll }));
+    } else {
+      const pc = getPettyCash(form.kategori);
+      if (pc) setForm(f => ({ ...f, estToll: f.estToll && f.estToll > 0 ? f.estToll : pc.toll }));
+    }
   }, [form.kategori]);
 
   function set(k: keyof RencanaData, v: unknown) {
@@ -850,19 +850,23 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
     const r = rencanas.find(x => String(x.id) === String(id));
     if (r) {
       const armada = ARMADA.find(a => a.name === r.armadaName);
-      // KM dari GAS bisa string "216.127" — strip titik ribuan
       const parseKmLocal = (val: unknown): number => {
         const n = Number(String(val ?? '').replace(/\./g, '').replace(',', '.'));
         return isNaN(n) ? 0 : n;
       };
       const kmAwalNum = parseKmLocal(r.kmAwal);
+      // E-toll: auto dari kategori kalau ada, fallback ke armada hasToll
+      const autoToll = getAutoToll(r.kategori || '');
+      const estToll  = autoToll > 0
+        ? autoToll
+        : armada?.hasToll ? (r.estToll || 0) : 0;
       setForm({
         tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
         kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
         lokasiAwal: r.lokasiAwal, lokasiTujuan: r.lokasiTujuan,
         kmAwal: kmAwalNum,
-        estBbm: 0,  // dihitung ulang saat KM Akhir diisi
-        estToll: armada?.hasToll ? (r.estToll || 0) : 0,
+        estBbm: 0,
+        estToll,
         rencanaId: r.id,
       });
     }
