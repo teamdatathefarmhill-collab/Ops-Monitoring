@@ -421,9 +421,9 @@ function MultiEstBox({ bbm, toll, kategoriStr }: { bbm: number; toll: number; ka
           <div />
         </div>
 
-        {/* Grand total */}
+        {/* Grand total — hanya BBM + E-toll */}
         <div style={{ padding: '9px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: 'var(--accent)', borderTop: '1px solid var(--border)' }}>
-          Est. total ops: {fmtRupiah(bbm + toll + estOps)}
+          Est. total ops: {fmtRupiah(bbm + toll)}
         </div>
       </div>
     </div>
@@ -1087,14 +1087,11 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
       const kmAwalNum = parseKmLocal(r.kmAwal);
       // Hitung toll dari multi-kategori
       const kategoriStr = r.kategori || '';
-      console.log('[pilihRencana] kategori raw:', JSON.stringify(kategoriStr));
       const { estToll: tollDariKategori, estBbm: bbmDariKategori } =
         hitungMultiKategori(kategoriStr, r.armadaName || '');
-      console.log('[pilihRencana] tollDariKategori:', tollDariKategori, 'bbm:', bbmDariKategori);
       const estToll = tollDariKategori > 0
         ? tollDariKategori
         : armada?.hasToll ? (r.estToll || 0) : 0;
-      console.log('[pilihRencana] estToll final:', estToll);
       setForm({
         tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
         kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
@@ -1221,9 +1218,9 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
                 borderRadius: 'var(--radius)', fontSize: 13, display: 'flex', gap: 20, flexWrap: 'wrap',
               }}>
                 <span>📍 Jarak: <strong style={{ color: 'var(--accent)' }}>{jarak.toLocaleString('id-ID')} km</strong></span>
-                {form.estBbm || form.estToll || form.ops ? (
+                {form.estBbm || form.estToll ? (
                   <span>💰 Total ops: <strong style={{ color: 'var(--accent)' }}>
-                    {fmtRupiah((form.estBbm ?? 0) + (form.estToll ?? 0) + (form.ops ?? 0))}
+                    {fmtRupiah((form.estBbm ?? 0) + (form.estToll ?? 0))}
                   </strong></span>
                 ) : null}
               </div>
