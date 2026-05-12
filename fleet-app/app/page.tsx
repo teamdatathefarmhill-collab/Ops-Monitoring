@@ -1086,11 +1086,15 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
       };
       const kmAwalNum = parseKmLocal(r.kmAwal);
       // Hitung toll dari multi-kategori
+      const kategoriStr = r.kategori || '';
+      console.log('[pilihRencana] kategori raw:', JSON.stringify(kategoriStr));
       const { estToll: tollDariKategori, estBbm: bbmDariKategori } =
-        hitungMultiKategori(r.kategori || '', r.armadaName || '');
+        hitungMultiKategori(kategoriStr, r.armadaName || '');
+      console.log('[pilihRencana] tollDariKategori:', tollDariKategori, 'bbm:', bbmDariKategori);
       const estToll = tollDariKategori > 0
         ? tollDariKategori
         : armada?.hasToll ? (r.estToll || 0) : 0;
+      console.log('[pilihRencana] estToll final:', estToll);
       setForm({
         tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
         kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
