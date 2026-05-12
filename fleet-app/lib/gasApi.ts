@@ -89,3 +89,9 @@ export interface AktifData {
 
 export const getAktif = () =>
   gasGet<{ aktif: AktifData[]; total: number }>('getAktif');
+
+export const deleteRencana = (id: number | string) =>
+  gasPost<{ message: string }>('deleteRencana', { id: String(id) });
+
+export const updateRencana = (data: RencanaData & { id: number | string }) =>
+  gasPost<{ message: string }>('updateRencana', { ...data, id: String(data.id) });
