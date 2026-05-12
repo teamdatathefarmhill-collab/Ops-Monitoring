@@ -32,27 +32,84 @@ export const KATEGORI = [
 ];
 
 // Petty cash budget per kategori
+// Budget petty cash per kategori (uang yang dikasih ke driver)
 export const PETTY_CASH: Record<string, { bbm: number; toll: number; ops: number }> = {
-  'Angkut Panen Bergas':        { bbm: 200000, toll: 100000, ops: 50000 },
-  'Pengiriman Melon Semarangan':{ bbm: 200000, toll: 100000, ops: 50000 },
+  'Angkut Panen Bergas':        { bbm: 200000, toll: 78500,  ops: 50000 },
+  'Pengiriman Melon Semarangan':{ bbm: 200000, toll: 106000, ops: 50000 },
 };
 
 export function getPettyCash(kategori: string) {
   return PETTY_CASH[kategori] ?? null;
 }
 
-// GT otomatis per kategori — { masuk, keluar } sekali jalan, dikalikan 2 untuk PP
+// GT per kategori — sekali jalan (tidak PP)
 export const TOLL_AUTO: Record<string, { gtMasuk: string; gtKeluar: string }> = {
-  'Angkut Panen Bergas':        { gtMasuk: 'GT Banyudono', gtKeluar: 'GT Bawen' },
+  'Angkut Panen Bergas':        { gtMasuk: 'GT Bawen',                  gtKeluar: 'GT Adi Soemarmo (Bandara)' },
   'Pengiriman Melon Semarangan':{ gtMasuk: 'GT Adi Soemarmo (Bandara)', gtKeluar: 'GT Srondol' },
 };
 
-// Hitung e-toll otomatis dari kategori (PP = x2)
+// Hitung e-toll dari satu kategori — sekali jalan
 export function getAutoToll(kategori: string): number {
   const gt = TOLL_AUTO[kategori];
   if (!gt) return 0;
-  const tarif = TOLL_TARIF[gt.gtMasuk]?.[gt.gtKeluar] ?? 0;
-  return tarif * 2; // PP
+  // Coba langsung, atau balik arah (karena tabel hanya satu arah)
+  return TOLL_TARIF[gt.gtMasuk]?.[gt.gtKeluar]
+      ?? TOLL_TARIF[gt.gtKeluar]?.[gt.gtMasuk]
+      ?? 0;
+}
+
+// Hitung total estimasi dari multi-kategori (pisah dengan ' + ')
+// Kalau dua kategori punya rute yang nyambung (mis. Bergas+Semarang),
+// toll tidak di-double — cukup dijumlah satu kali per segmen.
+export function hitungMultiKategori(kategoriStr: string, armadaName: string): {
+  estBbm: number;
+  estToll: number;
+  estOps: number;
+  detail: { kategori: string; bbm: number; toll: number; ops: number }[];
+} {
+  const kats = (kategoriStr || '').split(' + ').filter(Boolean);
+  let estBbm = 0, estToll = 0, estOps = 0;
+  const detail: { kategori: string; bbm: number; toll: number; ops: number }[] = [];
+
+  // Deteksi kombinasi khusus yang rutenya nyambung
+  const hasAngkutPanen  = kats.includes('Angkut Panen Bergas');
+  const hasKirimanSemg  = kats.includes('Pengiriman Melon Semarangan');
+
+  if (hasAngkutPanen && hasKirimanSemg) {
+    // Rute nyambung: GT Bawen → GT Bandara → GT Srondol
+    // = tarif GT Bawen→Srondol (lebih murah dari beli dua tiket terpisah)
+    // Tapi karena masuk di Bawen dan keluar di Srondol, pakai tarif langsung
+    const tollGabung = TOLL_TARIF['GT Bawen']?.['GT Srondol']
+                    ?? TOLL_TARIF['GT Ngemplak']?.['GT Srondol']
+                    ?? (getAutoToll('Angkut Panen Bergas') + getAutoToll('Pengiriman Melon Semarangan'));
+
+    kats.forEach(k => {
+      const pc  = getPettyCash(k);
+      const bbm = pc?.bbm ?? 0;
+      const ops = pc?.ops ?? 0;
+      estBbm += bbm;
+      estOps += ops;
+      // Toll dibagi per segmen untuk display, tapi total = tollGabung
+      const tollSegmen = k === 'Angkut Panen Bergas'
+        ? getAutoToll('Angkut Panen Bergas')
+        : tollGabung - getAutoToll('Angkut Panen Bergas');
+      detail.push({ kategori: k, bbm, toll: tollSegmen, ops });
+    });
+    estToll = tollGabung;
+  } else {
+    kats.forEach(k => {
+      const pc   = getPettyCash(k);
+      const toll = getAutoToll(k);
+      const bbm  = pc?.bbm ?? 0;
+      const ops  = pc?.ops ?? 0;
+      estBbm  += bbm;
+      estToll += toll;
+      estOps  += ops;
+      detail.push({ kategori: k, bbm, toll, ops });
+    });
+  }
+
+  return { estBbm, estToll, estOps, detail };
 }
 
 // Jarak dari Bergas sebagai titik 0 (km)
@@ -168,6 +225,14 @@ export const TOLL_TARIF: Record<string, Record<string, number>> = {
     'GT Banyumanik': 109000,
     'GT Srondol':    115000,
     'GT Tembalang':  115000,
+  },
+  // GT Bawen sebagai titik masuk (rute dari Semarang balik ke Solo)
+  'GT Bawen': {
+    'GT Banyudono':              58000,
+    'GT Adi Soemarmo (Bandara)': 78500,
+    'GT Srondol':                184500, // Bawen → Bandara → Srondol (nyambung)
+    'GT Ungaran':                18500,
+    'GT Banyumanik':             28000,
   },
 };
 
