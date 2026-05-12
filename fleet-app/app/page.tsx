@@ -1085,17 +1085,18 @@ function TabRealisasi({ setToast }: { setToast: (s: string) => void }) {
         return isNaN(n) ? 0 : n;
       };
       const kmAwalNum = parseKmLocal(r.kmAwal);
-      // E-toll: auto dari kategori kalau ada, fallback ke armada hasToll
-      const autoToll = getAutoToll(r.kategori || '');
-      const estToll  = autoToll > 0
-        ? autoToll
+      // Hitung toll dari multi-kategori
+      const { estToll: tollDariKategori, estBbm: bbmDariKategori } =
+        hitungMultiKategori(r.kategori || '', r.armadaName || '');
+      const estToll = tollDariKategori > 0
+        ? tollDariKategori
         : armada?.hasToll ? (r.estToll || 0) : 0;
       setForm({
         tgl: r.tgl, armadaName: r.armadaName, pic: r.pic, driver: r.driver,
         kategori: r.kategori, tujuan: r.tujuan, jamMulai: r.jamMulai,
         lokasiAwal: r.lokasiAwal, lokasiTujuan: r.lokasiTujuan,
         kmAwal: kmAwalNum,
-        estBbm: 0,
+        estBbm: bbmDariKategori > 0 ? bbmDariKategori : 0, // dari petty cash, akan di-override saat isi KM akhir
         estToll,
         rencanaId: r.id,
       });
