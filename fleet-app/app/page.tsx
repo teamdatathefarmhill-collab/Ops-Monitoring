@@ -490,6 +490,116 @@ function MultiLocasi({
   );
 }
 
+// ─── MULTI KATEGORI ──────────────────────────────────────────
+function MultiKategori({
+  label, value, onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = value ? value.split(' + ').filter(Boolean) : [];
+
+  function toggle(kat: string) {
+    const idx = selected.indexOf(kat);
+    const next = idx >= 0
+      ? selected.filter(x => x !== kat)
+      : [...selected, kat];
+    onChange(next.join(' + '));
+  }
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  return (
+    <Field label={label}>
+      <div ref={ref} style={{ position: 'relative' }}>
+        <div
+          onClick={() => setOpen(o => !o)}
+          style={{
+            ...css.field,
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            flexWrap: 'wrap', minHeight: 38,
+            borderColor: open ? 'var(--accent)' : 'var(--border)',
+            background: open ? 'var(--bg4)' : 'var(--bg3)',
+            paddingRight: 32, userSelect: 'none',
+          }}
+        >
+          {selected.length === 0 ? (
+            <span style={{ color: 'var(--text3)' }}>Pilih kategori...</span>
+          ) : selected.map(s => (
+            <span key={s} style={{
+              background: 'var(--accent-dim)', color: 'var(--accent)',
+              borderRadius: 4, padding: '2px 7px', fontSize: 11, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              {s}
+              <span onClick={e => { e.stopPropagation(); toggle(s); }}
+                style={{ cursor: 'pointer', opacity: 0.7 }}>×</span>
+            </span>
+          ))}
+          <svg style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2">
+            <polyline points={open ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
+          </svg>
+        </div>
+        {open && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 999,
+            background: 'var(--bg2)', border: '1px solid var(--border2)',
+            borderRadius: 'var(--radius2)', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            maxHeight: 280, overflowY: 'auto',
+          }}>
+            {selected.length > 0 && (
+              <div onClick={() => onChange('')} style={{
+                padding: '8px 12px', fontSize: 11, color: 'var(--red)',
+                cursor: 'pointer', borderBottom: '1px solid var(--border)', fontWeight: 600,
+              }}>✕ Hapus semua</div>
+            )}
+            {KATEGORI.map(kat => {
+              const isSelected = selected.includes(kat);
+              const hasBudget  = !!getPettyCash(kat) || getAutoToll(kat) > 0;
+              return (
+                <div key={kat} onClick={() => toggle(kat)} style={{
+                  padding: '9px 12px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  background: isSelected ? 'var(--accent-dim)' : 'transparent',
+                  color: isSelected ? 'var(--accent)' : 'var(--text)',
+                  fontSize: 13, borderBottom: '1px solid var(--border)',
+                }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--bg3)'; }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style={{
+                    width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border2)'}`,
+                    background: isSelected ? 'var(--accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0a1a0a" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </span>
+                  <span style={{ flex: 1 }}>{kat}</span>
+                  {hasBudget && <span style={{ fontSize: 10, color: 'var(--amber)', fontWeight: 600 }}>💰</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Field>
+  );
+}
+
 // ─── MONITOR ──────────────────────────────────────────────────
 
 function TabMonitor() {
@@ -651,16 +761,16 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     }
   }, [form.gtMasuk, form.gtKeluar]);
 
-  // Auto-fill e-toll dari kategori
+  // Auto-fill e-toll dari kategori (support multi)
   useEffect(() => {
     if (!form.kategori) return;
-    const autoToll = getAutoToll(form.kategori);
-    if (autoToll > 0) {
-      setForm(f => ({ ...f, estToll: autoToll }));
-    } else {
-      const pc = getPettyCash(form.kategori);
-      if (pc) setForm(f => ({ ...f, estToll: f.estToll && f.estToll > 0 ? f.estToll : pc.toll }));
-    }
+    const kats = form.kategori.split(' + ').filter(Boolean);
+    let totalToll = 0;
+    kats.forEach(k => {
+      const t = getAutoToll(k);
+      totalToll += t > 0 ? t : (getPettyCash(k)?.toll ?? 0);
+    });
+    if (totalToll > 0) setForm(f => ({ ...f, estToll: totalToll }));
   }, [form.kategori]);
 
   function set(k: keyof RencanaData, v: unknown) {
@@ -761,10 +871,7 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
             <option value="">Pilih driver...</option>
             {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
           </Select>
-          <Select label="Kategori" value={form.kategori ?? ''} onChange={e => set('kategori', e.target.value)}>
-            <option value="">Pilih kategori...</option>
-            {KATEGORI.map(k => <option key={k} value={k}>{k}</option>)}
-          </Select>
+          <MultiKategori label="Kategori" value={form.kategori ?? ''} onChange={v => set('kategori', v)} />
           <Input label="Tujuan (bebas)" value={form.tujuan ?? ''} onChange={e => set('tujuan', e.target.value)} placeholder="Contoh: GH Tohudan" />
           <Input label="Jam Mulai" type="time" value={form.jamMulai ?? ''} onChange={e => set('jamMulai', e.target.value)} />
           <Input label="Perkiraan Selesai" type="time" value={form.jamSelesai ?? ''} onChange={e => set('jamSelesai', e.target.value)} />
@@ -793,7 +900,8 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
 
         <Divider />
         <Textarea label="Keterangan Tambahan" value={form.ket ?? ''} onChange={e => set('ket', e.target.value)} placeholder="Info penting lainnya..." />
-        <EstBox bbm={form.estBbm} toll={form.estToll} kategori={form.kategori} />
+        <EstBox bbm={form.estBbm} toll={form.estToll}
+          kategori={form.kategori?.split(' + ').find(k => !!getPettyCash(k))} />
 
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <Btn variant="primary" onClick={simpan} loading={loading}>
