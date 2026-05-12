@@ -21,7 +21,8 @@ function pad(label: string, width = 14): string {
 export function waRencana(p: PlanForWa): string {
   const W = 14;
   const lines = [
-    `📋 *RENCANA DAN REALISASI PENGGUNAAN ARMADA*`,
+    `📋 *RENCANA PENGGUNAAN ARMADA*`,
+    
     `${pad('Tanggal',W)}: ${fmtTgl(p.tgl)}`,
     `${pad('Armada',W)}: ${p.armadaName}`,
     `${pad('PIC',W)}: ${p.pic}`,
@@ -45,6 +46,7 @@ export function waRencana(p: PlanForWa): string {
 export function waRealisasi(t: TripForWa): string {
   const lines = [
     `✅ *REALISASI PENGGUNAAN ARMADA*`,
+    
     `Tanggal  : ${fmtTgl(t.tgl)}`,
     `Armada   : ${t.armadaName}`,
     `PIC      : ${t.pic}`,
