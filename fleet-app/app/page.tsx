@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ARMADA, DRIVERS, KATEGORI, LOKASI_LIST, GT_MASUK, GT_KELUAR,
-  getJarak, getTollTarif, hitungEstBbm, getPettyCash, getAutoToll, fmtRupiah, fmtTgl, fmtTglShort, today,
+  getJarak, getTollTarif, hitungEstBbm, getPettyCash, getAutoToll, hitungMultiKategori,
+  fmtRupiah, fmtTgl, fmtTglShort, today,
 } from '@/lib/data';
 import {
   appendTrip, appendRencana, getData, getRencana, getStats, updateStatus, getAktif,
@@ -347,6 +348,84 @@ function EstBox({
       <span style={{ marginLeft: 'auto', fontWeight: 600, color: 'var(--accent)' }}>
         Total est: {fmtRupiah(total)}
       </span>
+    </div>
+  );
+}
+
+// Estimasi multi-kategori breakdown
+function MultiEstBox({ bbm, toll, kategoriStr }: { bbm: number; toll: number; kategoriStr: string }) {
+  if (!kategoriStr) return null;
+  const { detail, estOps, budgetToll } = hitungMultiKategori(kategoriStr, '');
+  const hasAnyBudget = detail.some(d => d.bbm > 0 || d.toll > 0);
+  if (!hasAnyBudget && !bbm && !toll) return null;
+
+  // Tampilan sederhana kalau tidak ada petty cash
+  if (!hasAnyBudget) {
+    return (
+      <div style={{
+        background: 'var(--accent-dim)', border: '1px solid var(--border2)',
+        borderRadius: 'var(--radius)', padding: '10px 14px',
+        display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 12, marginTop: 4,
+      }}>
+        {bbm  > 0 && <span>⛽ BBM: <strong style={{ color: 'var(--accent)' }}>{fmtRupiah(bbm)}</strong></span>}
+        {toll > 0 && <span>🛣️ E-toll: <strong style={{ color: 'var(--accent)' }}>{fmtRupiah(toll)}</strong></span>}
+        <span style={{ marginLeft: 'auto', fontWeight: 600, color: 'var(--accent)' }}>Total: {fmtRupiah(bbm + toll)}</span>
+      </div>
+    );
+  }
+
+  const sisaToll  = budgetToll - toll;
+  const tollWarn  = sisaToll < 0;
+
+  return (
+    <div style={{ border: '1px solid var(--border2)', borderRadius: 'var(--radius)', overflow: 'hidden', marginTop: 4, fontSize: 12 }}>
+      <div style={{ background: 'var(--accent-dim)', padding: '7px 14px', fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: "'IBM Plex Mono', monospace" }}>
+        💰 Estimasi Ops
+      </div>
+      <div style={{ background: 'var(--bg3)' }}>
+        {/* Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border)' }}>
+          {['Kategori', 'BBM', 'E-toll', 'Ops'].map(h => (
+            <div key={h} style={{ padding: '6px 12px', fontSize: 10, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace" }}>{h}</div>
+          ))}
+        </div>
+        {/* Per kategori */}
+        {detail.map((d, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ padding: '7px 12px', color: 'var(--text2)', fontSize: 11 }}>{d.kategori}</div>
+            <div style={{ padding: '7px 12px', fontFamily: "'IBM Plex Mono', monospace", color: d.bbm > 0 ? 'var(--text)' : 'var(--text3)' }}>{d.bbm > 0 ? fmtRupiah(d.bbm) : '-'}</div>
+            <div style={{ padding: '7px 12px', fontFamily: "'IBM Plex Mono', monospace", color: d.toll > 0 ? 'var(--amber)' : 'var(--text3)' }}>{d.toll > 0 ? fmtRupiah(d.toll) : '-'}</div>
+            <div style={{ padding: '7px 12px', fontFamily: "'IBM Plex Mono', monospace", color: d.ops > 0 ? 'var(--text)' : 'var(--text3)' }}>{d.ops > 0 ? fmtRupiah(d.ops) : '-'}</div>
+          </div>
+        ))}
+
+        {/* Budget vs aktual toll */}
+        <div style={{ borderBottom: '1px solid var(--border)', padding: '8px 12px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
+          <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace", alignSelf: 'center' }}>Budget toll</div>
+          <div />
+          <div style={{ padding: '0', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text2)', fontSize: 11 }}>{fmtRupiah(budgetToll)}</div>
+          <div />
+        </div>
+        <div style={{ borderBottom: '1px solid var(--border)', padding: '8px 12px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr' }}>
+          <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace", alignSelf: 'center' }}>Est. aktual</div>
+          <div />
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", color: 'var(--amber)', fontSize: 11 }}>{fmtRupiah(toll)}</div>
+          <div />
+        </div>
+        <div style={{ padding: '8px 12px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: tollWarn ? 'var(--red-dim)' : 'var(--accent-dim)' }}>
+          <div style={{ fontSize: 10, color: tollWarn ? 'var(--red)' : 'var(--text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace", alignSelf: 'center' }}>Sisa toll</div>
+          <div />
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, color: tollWarn ? 'var(--red)' : 'var(--accent)', fontSize: 12 }}>
+            {tollWarn ? `⚠️ ${fmtRupiah(Math.abs(sisaToll))} kurang` : fmtRupiah(sisaToll)}
+          </div>
+          <div />
+        </div>
+
+        {/* Grand total */}
+        <div style={{ padding: '9px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: 'var(--accent)', borderTop: '1px solid var(--border)' }}>
+          Est. total ops: {fmtRupiah(bbm + toll + estOps)}
+        </div>
+      </div>
     </div>
   );
 }
@@ -761,16 +840,15 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
     }
   }, [form.gtMasuk, form.gtKeluar]);
 
-  // Auto-fill e-toll dari kategori (support multi)
+  // Auto-fill BBM & e-toll dari kategori (support multi)
   useEffect(() => {
     if (!form.kategori) return;
-    const kats = form.kategori.split(' + ').filter(Boolean);
-    let totalToll = 0;
-    kats.forEach(k => {
-      const t = getAutoToll(k);
-      totalToll += t > 0 ? t : (getPettyCash(k)?.toll ?? 0);
-    });
-    if (totalToll > 0) setForm(f => ({ ...f, estToll: totalToll }));
+    const { estBbm, estToll } = hitungMultiKategori(form.kategori, form.armadaName ?? '');
+    setForm(f => ({
+      ...f,
+      ...(estBbm  > 0 ? { estBbm  } : {}),
+      ...(estToll > 0 ? { estToll } : {}),
+    }));
   }, [form.kategori]);
 
   function set(k: keyof RencanaData, v: unknown) {
@@ -900,8 +978,11 @@ function TabRencana({ setToast }: { setToast: (s: string) => void }) {
 
         <Divider />
         <Textarea label="Keterangan Tambahan" value={form.ket ?? ''} onChange={e => set('ket', e.target.value)} placeholder="Info penting lainnya..." />
-        <EstBox bbm={form.estBbm} toll={form.estToll}
-          kategori={form.kategori?.split(' + ').find(k => !!getPettyCash(k))} />
+        <MultiEstBox
+          bbm={form.estBbm ?? 0}
+          toll={form.estToll ?? 0}
+          kategoriStr={form.kategori ?? ''}
+        />
 
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <Btn variant="primary" onClick={simpan} loading={loading}>
