@@ -13,26 +13,32 @@ export interface TripForWa extends PlanForWa {
   estBbmAktual?: number; estTollAktual?: number; ops?: number; ket?: string;
 }
 
+// Align semua label ke lebar yang sama
+function pad(label: string, width = 14): string {
+  return label + ' '.repeat(Math.max(0, width - label.length));
+}
+
 export function waRencana(p: PlanForWa): string {
+  const W = 14;
   const lines = [
     `📋 *RENCANA DAN REALISASI PENGGUNAAN ARMADA*`,
-    `Tanggal  : ${fmtTgl(p.tgl)}`,
-    `Armada   : ${p.armadaName}`,
-    `PIC      : ${p.pic}`,
-    `Driver   : ${p.driver}`,
+    `${pad('Tanggal',W)}: ${fmtTgl(p.tgl)}`,
+    `${pad('Armada',W)}: ${p.armadaName}`,
+    `${pad('PIC',W)}: ${p.pic}`,
+    `${pad('Driver',W)}: ${p.driver}`,
   ];
-  if (p.kategori) lines.push(`Keperluan : ${p.kategori}`);
-  if (p.tujuan)   lines.push(`Tujuan    : ${p.tujuan}`);
-  if (p.jamMulai) lines.push(`Jam mulai : ${p.jamMulai}`);
-  if (p.kmAwal)   lines.push(`KM awal   : ${p.kmAwal.toLocaleString('id-ID')}`);
-  if (p.lokasiAwal && p.lokasiTujuan) {
-    lines.push(`Rute      : ${p.lokasiAwal} → ${p.lokasiTujuan}${p.jarakEst ? ` (~${p.jarakEst} km PP)` : ''}`);
+  if (p.kategori) lines.push(`${pad('Keperluan',W)}: ${p.kategori}`);
+  if (p.tujuan)   lines.push(`${pad('Tujuan',W)}: ${p.tujuan}`);
+  if (p.jamMulai) lines.push(`${pad('Jam mulai',W)}: ${p.jamMulai}`);
+  if (p.kmAwal)   lines.push(`${pad('KM awal',W)}: ${p.kmAwal.toLocaleString('id-ID')}`);
+  if (p.lokasiAwal) {
+    const rute = p.lokasiTujuan ? `${p.lokasiAwal} → ${p.lokasiTujuan}` : p.lokasiAwal;
+    lines.push(`${pad('Rute',W)}: ${rute}${p.jarakEst ? ` (~${p.jarakEst} km PP)` : ''}`);
   }
-  if (p.estBbm)  lines.push(`Est. bensin  : ${fmtRupiah(p.estBbm)}`);
-  if (p.estToll) lines.push(`Est. E-toll  : ${fmtRupiah(p.estToll)} PP`);
-  if (p.estBbm || p.estToll) {
-    lines.push(`Est. total ops : ${fmtRupiah((p.estBbm ?? 0) + (p.estToll ?? 0))}`);
-  }
+  if (p.estBbm)  lines.push(`${pad('Est. bensin',W)}: ${fmtRupiah(p.estBbm)}`);
+  if (p.estToll) lines.push(`${pad('Est. E-toll',W)}: ${fmtRupiah(p.estToll)} PP`);
+  const totalOps = (p.estBbm ?? 0) + (p.estToll ?? 0);
+  if (totalOps)  lines.push(`${pad('Est. total ops',W)}: ${fmtRupiah(totalOps)}`);
   return lines.join('\n');
 }
 
